@@ -23,6 +23,6 @@ jobs:
     - name: Show Xcode version
       run: xcodebuild -version
     - name: Build for iOS Simulator
-      run: xcodebuild -project monitor.xcodeproj -scheme monitor -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' build CODE_SIGNING_ALLOWED=NO
+      run: xcodebuild -project monitor.xcodeproj -scheme monitor -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' build CODE_SIGNING_ALLOWED=NO
     - name: Run tests on iOS Simulator
-      run: xcodebuild -project monitor.xcodeproj -scheme monitor -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' test CODE_SIGNING_ALLOWED=NO
+      run: xcodebuild -project monitor.xcodeproj -scheme monitor -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' test CODE_SIGNING_ALLOWED=NO
