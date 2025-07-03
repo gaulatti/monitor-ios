@@ -182,6 +182,77 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Post Sharing Utility
+struct PostSharingUtility {
+    static func sharePost(_ post: Post) {
+        // Format the message with post content and source
+        let message = """
+        📰 \(post.content)
+        """
+        
+        // URL encode the message
+        guard let encodedMessage = message.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            print("Failed to encode message")
+            shareViaGeneralSheet(message: message)
+            return
+        }
+        
+        // Create WhatsApp URL
+        let whatsappURL = "whatsapp://send?text=\(encodedMessage)"
+        
+        guard let url = URL(string: whatsappURL) else {
+            print("Invalid WhatsApp URL")
+            shareViaGeneralSheet(message: message)
+            return
+        }
+        
+        // Check if WhatsApp is installed
+        if UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url, options: [:]) { success in
+                if !success {
+                    print("Failed to open WhatsApp")
+                    // Fallback to general share sheet
+                    shareViaGeneralSheet(message: message)
+                }
+            }
+        } else {
+            // WhatsApp not installed, use general share sheet
+            shareViaGeneralSheet(message: message)
+        }
+    }
+    
+    private static func shareViaGeneralSheet(message: String) {
+        let activityViewController = UIActivityViewController(
+            activityItems: [message],
+            applicationActivities: nil
+        )
+        
+        // Find the topmost view controller
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first,
+              let rootViewController = window.rootViewController else {
+            print("Could not find root view controller")
+            return
+        }
+        
+        var topViewController = rootViewController
+        while let presentedViewController = topViewController.presentedViewController {
+            topViewController = presentedViewController
+        }
+        
+        // Configure for iPad
+        if let popover = activityViewController.popoverPresentationController {
+            popover.sourceView = topViewController.view
+            popover.sourceRect = CGRect(x: topViewController.view.bounds.midX, 
+                                      y: topViewController.view.bounds.midY, 
+                                      width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        
+        topViewController.present(activityViewController, animated: true)
+    }
+}
+
 struct PostsColumnView: View {
     @ObservedObject var viewModel: PostsViewModel
 
@@ -322,6 +393,14 @@ struct ModernPostCard: View {
                     isPressed = false
                 }
             }
+        }
+        .onLongPressGesture(minimumDuration: 0.5) {
+            // Haptic feedback for long press
+            let impact = UIImpactFeedbackGenerator(style: .medium)
+            impact.impactOccurred()
+            
+            // Share to WhatsApp
+            PostSharingUtility.sharePost(post)
         }
     }
 }
@@ -468,6 +547,14 @@ struct CompactPostCard: View {
                         .stroke(accentColor.opacity(0.2), lineWidth: 1)
                 )
         )
+        .onLongPressGesture {
+            // Haptic feedback for long press
+            let impact = UIImpactFeedbackGenerator(style: .medium)
+            impact.impactOccurred()
+            
+            // Share to WhatsApp
+            PostSharingUtility.sharePost(post)
+        }
     }
 }
 
