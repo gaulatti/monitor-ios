@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		714897492E147D8C00E5AEAC /* EventSource in Frameworks */ = {isa = PBXBuildFile; productRef = 714897482E147D8C00E5AEAC /* EventSource */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		7180358B2E0E56EF0014CC59 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -56,7 +52,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				714897492E147D8C00E5AEAC /* EventSource in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -125,7 +120,6 @@
 			);
 			name = monitor;
 			packageProductDependencies = (
-				714897482E147D8C00E5AEAC /* EventSource */,
 			);
 			productName = monitor;
 			productReference = 7180357B2E0E56ED0014CC59 /* monitor.app */;
@@ -210,7 +204,6 @@
 			mainGroup = 718035722E0E56ED0014CC59;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				714897462E147D4900E5AEAC /* XCRemoteSwiftPackageReference "EventSource" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7180357C2E0E56ED0014CC59 /* Products */;
@@ -575,25 +568,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		714897462E147D4900E5AEAC /* XCRemoteSwiftPackageReference "EventSource" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Recouse/EventSource";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.1.4;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		714897482E147D8C00E5AEAC /* EventSource */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 714897462E147D4900E5AEAC /* XCRemoteSwiftPackageReference "EventSource" */;
-			productName = EventSource;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 718035732E0E56ED0014CC59 /* Project object */;
 }
