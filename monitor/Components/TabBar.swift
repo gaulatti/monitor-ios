@@ -15,7 +15,7 @@ struct TabBarView: View {
 
     var body: some View {
         HStack {
-            ForEach(tabItems.indices, id: \.self) { idx in
+            ForEach(tabIcons.indices, id: \.self) { idx in
                 Button(action: {
                     selectedTab = idx
                     // Haptic feedback

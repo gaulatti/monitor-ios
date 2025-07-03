@@ -74,6 +74,8 @@ class SSEClient: NSObject, URLSessionDataDelegate {
     private var buffer = ""
 
     var onMessage: ((String) -> Void)?
+    var onConnect: (() -> Void)?
+    var onDisconnect: (() -> Void)?
 
     override init() {
         super.init()
@@ -91,6 +93,14 @@ class SSEClient: NSObject, URLSessionDataDelegate {
         self.task?.resume()
     }
 
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        // Connection established
+        DispatchQueue.main.async {
+            self.onConnect?()
+        }
+        completionHandler(.allow)
+    }
+
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         guard let chunk = String(data: data, encoding: .utf8) else { return }
         buffer += chunk
@@ -103,6 +113,13 @@ class SSEClient: NSObject, URLSessionDataDelegate {
             DispatchQueue.main.async {
                 self.onMessage?(message)
             }
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        // Connection ended (either normally or with error)
+        DispatchQueue.main.async {
+            self.onDisconnect?()
         }
     }
 

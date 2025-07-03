@@ -45,29 +45,7 @@ struct HeaderView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 8)
-            // Real-time updates indicator
-            HStack {
-                Text("Real-time updates active")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(Color(red: 0.61, green: 0.64, blue: 0.69))
-                Spacer()
-                // Post count for selected category
-                if let viewModel = viewModels[safe: selectedCategoryIndex] {
-                    Text("\(viewModel.posts.count) posts")
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundColor(Color(red: 0.61, green: 0.64, blue: 0.69)) // #9ca3af
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 8)
+            .padding(.vertical, 8)
         }
     }
 }
-
-//// Array safe subscript for HeaderView
-//extension Array {
-//    subscript(safe index: Int) -> Element? {
-//        indices.contains(index) ? self[index] : nil
-//    }
-//}
