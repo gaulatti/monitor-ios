@@ -16,7 +16,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Select Xcode version
+      run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+    - name: Show Xcode version
+      run: xcodebuild -version
     - name: Build
-      run: swift build -v
+      run: xcodebuild -project monitor.xcodeproj -scheme monitor -destination 'platform=macOS' build
     - name: Run tests
-      run: swift test -v
+      run: xcodebuild -project monitor.xcodeproj -scheme monitor -destination 'platform=macOS' test
