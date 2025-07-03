@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct TabBarView: View {
-    let tabItems: [String]
     let tabIcons: [String]
     @Binding var selectedTab: Int
     var accentColor: Color = Color(red: 0.23, green: 0.51, blue: 0.96)
@@ -23,32 +22,28 @@ struct TabBarView: View {
                     let impact = UIImpactFeedbackGenerator(style: .light)
                     impact.impactOccurred()
                 }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: tabIcons[idx])
-                            .font(.system(size: 20, weight: .medium))
-                        Text(tabItems[idx])
-                            .font(.system(size: 11, weight: .medium))
-                    }
-                    .foregroundColor(selectedTab == idx ? accentColor : secondaryColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        Group {
-                            if selectedTab == idx {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(.ultraThinMaterial)
-                            } else {
-                                Color.clear
+                    Image(systemName: tabIcons[idx])
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundColor(selectedTab == idx ? accentColor : secondaryColor)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            Group {
+                                if selectedTab == idx {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(.ultraThinMaterial)
+                                } else {
+                                    Color.clear
+                                }
                             }
-                        }
-                    )
-                    .scaleEffect(selectedTab == idx ? 1.05 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
+                        )
+                        .scaleEffect(selectedTab == idx ? 1.1 : 1.0)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
                 }
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
         .background(.ultraThinMaterial)
     }
 }

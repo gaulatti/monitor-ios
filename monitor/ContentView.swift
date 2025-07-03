@@ -11,9 +11,10 @@ import Combine
 
 struct ContentView: View {
     // Categories for columns with accent colors
-    private let categories = ["all", "business", "world", "politics", "technology", "weather"]
+    private let categories = ["all", "relevant", "business", "world", "politics", "technology", "weather"]
     private let categoryColors: [String: Color] = [
         "all": Color(red: 0.75, green: 0.75, blue: 0.75), // #c0c0c0 - neutral gray for all
+        "relevant": Color(red: 0.85, green: 0.35, blue: 0.35), // #d95959 - red for relevant/important
         "business": Color(red: 0.06, green: 0.73, blue: 0.51), // #10b981
         "world": Color(red: 0.23, green: 0.51, blue: 0.96), // #3b82f6
         "politics": Color(red: 0.96, green: 0.62, blue: 0.04), // #f59e0b
@@ -23,7 +24,6 @@ struct ContentView: View {
     
     @State private var selectedTab = 0
     @State private var selectedCategoryIndex = 0
-    private let tabItems = ["Home", "Bookmarks", "Settings"]
     private let tabIcons = ["house", "bookmark", "gearshape"]
     @State private var viewModels: [PostsViewModel] = []
     @State private var allPosts: [Post] = []
@@ -67,7 +67,6 @@ struct ContentView: View {
                 
                 // Modern TabBar
                 TabBarView(
-                    tabItems: tabItems,
                     tabIcons: tabIcons,
                     selectedTab: $selectedTab
                 )
@@ -123,9 +122,14 @@ struct ContentView: View {
                         allViewModel.insertPost(post)
                     }
                     
+                    // Add to "relevant" category if relevance >= 4 (index 1 since "relevant" is second)
+                    if post.relevance >= 4, let relevantViewModel = viewModels[safe: 1] {
+                        relevantViewModel.insertPost(post)
+                    }
+                    
                     // Add to specific categories
                     for (idx, cat) in categories.enumerated() {
-                        if cat != "all" && post.categories.contains(cat) {
+                        if cat != "all" && cat != "relevant" && post.categories.contains(cat) {
                             if let vm = viewModels[safe: idx] {
                                 vm.insertPost(post)
                             }
@@ -168,6 +172,13 @@ struct ContentView: View {
                         vm.posts = Array(posts.prefix(50)) // Show more posts for "all"
                         print("📋 'All' category: \(vm.posts.count) posts")
                         return vm
+                    } else if cat == "relevant" {
+                        // For "relevant" category, include posts with relevance >= 4
+                        let relevantPosts = posts.filter { $0.relevance >= 4 }
+                        let vm = PostsViewModel(category: cat)
+                        vm.posts = Array(relevantPosts.prefix(30))
+                        print("🔥 'Relevant' category: \(vm.posts.count) posts")
+                        return vm
                     } else {
                         // For specific categories, filter by category
                         let filtered = posts.filter { $0.categories.contains(cat) }
@@ -203,17 +214,6 @@ struct PostSharingUtility {
         var topViewController = rootViewController
         while let presented = topViewController.presentedViewController {
             topViewController = presented
-        }
-
-        // iPad config
-        if let popover = activityViewController.popoverPresentationController {
-            popover.sourceView = topViewController.view
-            popover.sourceRect = CGRect(
-                x: topViewController.view.bounds.midX,
-                y: topViewController.view.bounds.midY,
-                width: 0, height: 0
-            )
-            popover.permittedArrowDirections = []
         }
 
         topViewController.present(activityViewController, animated: true)
@@ -254,14 +254,14 @@ struct PostsColumnView: View {
 // MARK: - Modern Posts Column View
 struct ModernPostsColumnView: View {
     @ObservedObject var viewModel: PostsViewModel
-    let accentColor: Color
+    let categoryColors: [String: Color]
     let category: String
     
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
                 ForEach(viewModel.posts) { post in
-                    ModernPostCard(post: post, accentColor: accentColor)
+                    ModernPostCard(post: post, categoryColors: categoryColors, columnCategory: category)
                         .transition(.asymmetric(
                             insertion: .move(edge: .top).combined(with: .opacity),
                             removal: .move(edge: .bottom).combined(with: .opacity)
@@ -277,9 +277,23 @@ struct ModernPostsColumnView: View {
 // MARK: - Modern Post Card
 struct ModernPostCard: View {
     let post: Post
-    let accentColor: Color
+    let categoryColors: [String: Color]
+    let columnCategory: String
     @State private var isPressed = false
     @State private var isLongPressed = false
+    
+    var accentColor: Color {
+        if columnCategory.lowercased() == "all" {
+            // In "All" column, use the color of the first category in the post
+            if let firstCategory = post.categories.first {
+                return categoryColors[firstCategory] ?? .blue
+            }
+            return .blue
+        } else {
+            // In specific category columns, use the column's category color
+            return categoryColors[columnCategory] ?? .blue
+        }
+    }
     
     var relevanceOpacity: Double {
         Double(post.relevance) / 10.0 * 0.1 + 0.05
@@ -399,55 +413,7 @@ struct ResponsiveLayoutView: View {
     @Binding var selectedCategoryIndex: Int
     
     var body: some View {
-        GeometryReader { geometry in
-            if geometry.size.width > 600 {
-                // Wide screen: Multi-column layout like web
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 16) {
-                        ForEach(categories.indices, id: \.self) { idx in
-                            VStack(alignment: .leading, spacing: 12) {
-                                // Category header
-                                HStack {
-                                    Text(categories[idx].uppercased())
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(categoryColors[categories[idx]] ?? .blue)
-                                    Spacer()
-                                    Text("(\(viewModels[safe: idx]?.posts.count ?? 0))")
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundColor(.secondary)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.top, 8)
-                                
-                                // Posts column
-                                ScrollView {
-                                    LazyVStack(spacing: 12) {
-                                        if let viewModel = viewModels[safe: idx] {
-                                            let postsToShow = categories[idx] == "all" ? 15 : 10 // Show more for "all"
-                                            ForEach(viewModel.posts.prefix(postsToShow)) { post in
-                                                CompactPostCard(post: post, accentColor: categoryColors[categories[idx]] ?? .blue)
-                                            }
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.bottom, 16)
-                                }
-                            }
-                            .frame(width: min(geometry.size.width * 0.9, 300))
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke((categoryColors[categories[idx]] ?? .blue).opacity(0.3), lineWidth: 1)
-                                    )
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                }
-            } else {
-                // Narrow screen: Single column with category tabs
+                // Single column layout with category tabs
                 VStack(spacing: 0) {
                     // Category tabs
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -460,17 +426,35 @@ struct ResponsiveLayoutView: View {
                                 }) {
                                     Text(categories[idx].uppercased())
                                         .font(.system(size: 14, weight: .semibold, design: .default))
-                                        .foregroundColor(selectedCategoryIndex == idx ? .white : Color(red: 0.61, green: 0.64, blue: 0.69))
+                                        .foregroundColor(
+                                            selectedCategoryIndex == idx ? .white : 
+                                            (categories[idx] == "all" ? .blue : (categoryColors[categories[idx]] ?? .blue))
+                                        )
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 8)
                                         .background(
                                             Group {
                                                 if selectedCategoryIndex == idx {
                                                     RoundedRectangle(cornerRadius: 20)
-                                                        .fill(categoryColors[categories[idx]] ?? .blue)
+                                                        .fill(categories[idx] == "all" ? .blue : (categoryColors[categories[idx]] ?? .blue))
                                                 } else {
-                                                    RoundedRectangle(cornerRadius: 20)
-                                                        .stroke(Color(red: 0.61, green: 0.64, blue: 0.69).opacity(0.3), lineWidth: 1)
+                                                    if categories[idx] == "all" {
+                                                        // Ghost button style with subtle border for "all" only
+                                                        RoundedRectangle(cornerRadius: 20)
+                                                            .stroke(.blue.opacity(0.2), lineWidth: 1)
+                                                            .background(
+                                                                RoundedRectangle(cornerRadius: 20)
+                                                                    .fill(.clear)
+                                                            )
+                                                    } else {
+                                                        // Regular style for other categories
+                                                        RoundedRectangle(cornerRadius: 20)
+                                                            .stroke((categoryColors[categories[idx]] ?? .blue).opacity(0.3), lineWidth: 1)
+                                                            .background(
+                                                                RoundedRectangle(cornerRadius: 20)
+                                                                    .fill((categoryColors[categories[idx]] ?? .blue).opacity(0.1))
+                                                            )
+                                                    }
                                                 }
                                             }
                                         )
@@ -480,84 +464,17 @@ struct ResponsiveLayoutView: View {
                         .padding(.horizontal, 20)
                     }
                     .padding(.vertical, 8)
-                    
+
                     // Selected category content
                     if selectedCategoryIndex < categories.count {
                         ModernPostsColumnView(
                             viewModel: viewModels[safe: selectedCategoryIndex] ?? PostsViewModel(category: categories[selectedCategoryIndex]),
-                            accentColor: categoryColors[categories[selectedCategoryIndex]] ?? .blue,
+                            categoryColors: categoryColors,
                             category: categories[selectedCategoryIndex]
                         )
                         .animation(.easeInOut(duration: 0.3), value: selectedCategoryIndex)
                     }
                 }
-            }
-        }
-    }
-}
-
-// MARK: - Compact Post Card for Multi-Column Layout
-struct CompactPostCard: View {
-    let post: Post
-    let accentColor: Color
-    @State private var isLongPressed = false
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(post.content)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(Color(red: 0.89, green: 0.91, blue: 0.92))
-                .lineLimit(4)
-                .multilineTextAlignment(.leading)
-            
-            HStack(spacing: 6) {
-                Text(post.source.uppercased())
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(accentColor, in: RoundedRectangle(cornerRadius: 3))
-                
-                Spacer()
-                
-                Text(post.posted_at.formatted(date: .omitted, time: .shortened))
-                    .font(.system(size: 9, weight: .medium, design: .monospaced))
-                    .foregroundColor(Color(red: 0.61, green: 0.64, blue: 0.69))
-            }
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(accentColor.opacity(0.2), lineWidth: 1)
-                )
-        )
-        .scaleEffect(isLongPressed ? 0.95 : 1.0)
-        .opacity(isLongPressed ? 0.8 : 1.0)
-        .animation(.spring(response: 0.2, dampingFraction: 0.8), value: isLongPressed)
-        .onLongPressGesture(minimumDuration: 0.5, maximumDistance: 10, pressing: { pressing in
-            // Immediate visual feedback during long press - ensure on main thread
-            DispatchQueue.main.async {
-                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-                    isLongPressed = pressing
-                }
-            }
-        }) {
-            // Ensure all actions are on main thread to prevent UI hangs
-            DispatchQueue.main.async {
-                // Small delay to ensure UI state has settled
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    // Haptic feedback only when long press completes successfully
-                    let impact = UIImpactFeedbackGenerator(style: .heavy)
-                    impact.impactOccurred()
-                    
-                    // Share to WhatsApp (already on main thread)
-                    PostSharingUtility.sharePost(post)
-                }
-            }
-        }
     }
 }
 

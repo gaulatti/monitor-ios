@@ -62,10 +62,6 @@ struct HeaderView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 8)
         }
-        .background(
-            .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: 0)
-        )
     }
 }
 
