@@ -12,12 +12,14 @@ on:
 jobs:
   build:
 
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
     - uses: actions/checkout@v4
-    - name: Select Xcode version
-      run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+    - name: List available Xcode versions
+      run: ls /Applications/ | grep Xcode
+    - name: Select latest Xcode version
+      run: sudo xcode-select -switch /Applications/Xcode_16.2.app/Contents/Developer
     - name: Show Xcode version
       run: xcodebuild -version
     - name: Build
