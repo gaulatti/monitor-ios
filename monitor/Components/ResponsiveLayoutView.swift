@@ -12,6 +12,37 @@ struct ResponsiveLayoutView: View {
     let viewModels: [PostsViewModel]
     @Binding var selectedCategoryIndex: Int
     
+    private var swipeGesture: some Gesture {
+        DragGesture()
+            .onEnded { value in
+                let threshold: CGFloat = 50
+                let horizontalAmount = value.translation.width
+                
+                if abs(horizontalAmount) > threshold {
+                    let currentIndex = selectedCategoryIndex
+                    let maxIndex = categories.count - 1
+                    
+                    if horizontalAmount > 0 {
+                        // Swipe right - go to previous category
+                        let newIndex = max(0, currentIndex - 1)
+                        if newIndex != currentIndex {
+                            let impact = UIImpactFeedbackGenerator(style: .light)
+                            impact.impactOccurred()
+                            selectedCategoryIndex = newIndex
+                        }
+                    } else {
+                        // Swipe left - go to next category
+                        let newIndex = min(maxIndex, currentIndex + 1)
+                        if newIndex != currentIndex {
+                            let impact = UIImpactFeedbackGenerator(style: .light)
+                            impact.impactOccurred()
+                            selectedCategoryIndex = newIndex
+                        }
+                    }
+                }
+            }
+    }
+    
     var body: some View {
                 // Single column layout with category tabs
                 VStack(spacing: 0) {
@@ -67,12 +98,16 @@ struct ResponsiveLayoutView: View {
 
                     // Selected category content
                     if selectedCategoryIndex < categories.count {
+                        let currentViewModel = viewModels[safe: selectedCategoryIndex] ?? PostsViewModel(category: categories[selectedCategoryIndex])
+                        let currentCategory = categories[selectedCategoryIndex]
+                        
                         ModernPostsColumnView(
-                            viewModel: viewModels[safe: selectedCategoryIndex] ?? PostsViewModel(category: categories[selectedCategoryIndex]),
+                            viewModel: currentViewModel,
                             categoryColors: categoryColors,
-                            category: categories[selectedCategoryIndex]
+                            category: currentCategory
                         )
                         .animation(.easeInOut(duration: 0.3), value: selectedCategoryIndex)
+                        .gesture(swipeGesture)
                     }
                 }
     }
