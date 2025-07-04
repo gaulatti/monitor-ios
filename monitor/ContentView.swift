@@ -32,6 +32,7 @@ struct ContentView: View {
     @State private var sseClient = SSEClient()
     @State private var isConnected = false
     @State private var pulseAnimation = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -45,7 +46,7 @@ struct ContentView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
                 // Modern Header
                 HeaderView(
@@ -56,7 +57,7 @@ struct ContentView: View {
                     isConnected: isConnected,
                     pulseAnimation: pulseAnimation
                 )
-                
+
                 // Responsive layout for categories and posts
                 ResponsiveLayoutView(
                     categories: categories,
@@ -64,7 +65,7 @@ struct ContentView: View {
                     viewModels: viewModels,
                     selectedCategoryIndex: $selectedCategoryIndex
                 )
-                
+
                 // Modern TabBar
                 TabBarView(
                     tabIcons: tabIcons,
@@ -84,9 +85,19 @@ struct ContentView: View {
             pollingTimer = nil
             sseClient.disconnect()
         }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            handleScenePhaseChange(from: oldPhase, to: newPhase)
+        }
+        .preferredColorScheme(.dark)
     }
     
     private func setupSSE() {
+        // Disconnect any existing connection first
+        sseClient.disconnect()
+        
+        // Create a new SSE client instance to ensure clean state
+        sseClient = SSEClient()
+        
         sseClient.onConnect = {
             DispatchQueue.main.async {
                 self.isConnected = true
@@ -161,6 +172,8 @@ struct ContentView: View {
 
     // Add this helper function inside ContentView
     private func fetchAndDistributePosts() {
+        print("🔄 Fetching fresh posts from server...")
+        
         guard let url = URL(string: "https://api.monitor.gaulatti.com/posts") else { return }
         let decoder = JSONDecoder()
         let isoFormatter = ISO8601DateFormatter()
@@ -175,10 +188,15 @@ struct ContentView: View {
         }
         URLSession.shared.dataTask(with: url) { data, _, _ in
             guard let data = data,
-                  let posts = try? decoder.decode([Post].self, from: data) else { return }
+                  let posts = try? decoder.decode([Post].self, from: data) else { 
+                print("❌ Failed to fetch posts")
+                return 
+            }
             DispatchQueue.main.async {
                 allPosts = posts
                 print("📊 Fetched \(posts.count) total posts")
+                
+                // Create new view models with fresh data
                 viewModels = categories.map { cat in
                     if cat == "all" {
                         // For "all" category, include all posts regardless of their categories
@@ -202,8 +220,68 @@ struct ContentView: View {
                         return vm
                     }
                 }
+                print("✅ Data refresh completed successfully")
             }
         }.resume()
+    }
+    
+    private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
+        switch newPhase {
+        case .active:
+            // App became active (foreground)
+            if oldPhase == .background || oldPhase == .inactive {
+                print("🚀 App returned to foreground - refreshing data and reconnecting SSE")
+                refreshAppData()
+            }
+        case .background:
+            // App went to background
+            print("📱 App went to background - disconnecting SSE")
+            cleanupConnections()
+        case .inactive:
+            // App became inactive (transitioning)
+            break
+        @unknown default:
+            break
+        }
+    }
+    
+    private func refreshAppData() {
+        // Clear existing data
+        clearAllData()
+        
+        // Re-fetch posts and re-establish SSE connection
+        fetchAndDistributePosts()
+        setupSSE()
+        startPulseAnimation()
+    }
+    
+    private func clearAllData() {
+        // Clear all posts from view models
+        for viewModel in viewModels {
+            viewModel.posts.removeAll()
+        }
+        
+        // Clear the main posts array
+        allPosts.removeAll()
+        
+        // Reset connection state
+        isConnected = false
+        pulseAnimation = false
+        
+        print("🧹 Cleared all data - ready for fresh start")
+    }
+    
+    private func cleanupConnections() {
+        // Disconnect SSE
+        sseClient.disconnect()
+        
+        // Cancel any timers
+        pollingTimer?.invalidate()
+        pollingTimer = nil
+        
+        // Update connection state
+        isConnected = false
+        pulseAnimation = false
     }
 }
 

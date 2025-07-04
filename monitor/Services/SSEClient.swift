@@ -18,6 +18,9 @@ class SSEClient: NSObject, URLSessionDataDelegate {
     }
 
     func connect(to url: URL) {
+        // Disconnect any existing connection first
+        disconnect()
+
         var request = URLRequest(url: url)
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         request.setValue("keep-alive", forHTTPHeaderField: "Connection")
@@ -25,6 +28,7 @@ class SSEClient: NSObject, URLSessionDataDelegate {
 
         self.task = session.dataTask(with: request)
         self.task?.resume()
+        print("SSE: Attempting to connect to \(url)")
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
@@ -60,5 +64,7 @@ class SSEClient: NSObject, URLSessionDataDelegate {
     func disconnect() {
         self.task?.cancel()
         self.task = nil
+        self.buffer = ""
+        print("SSE: Disconnected and buffer cleared")
     }
 }
