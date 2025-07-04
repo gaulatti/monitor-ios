@@ -20,7 +20,7 @@ struct HeaderView: View {
             HStack {
                 // App title with gradient
                 Text("monitor")
-                    .font(.system(size: 28, weight: .bold, design: .default))
+                    .font(.appTitle)
                     .foregroundStyle(
                         LinearGradient(
                             colors: [
@@ -40,7 +40,7 @@ struct HeaderView: View {
                         .opacity(pulseAnimation ? 1.0 : 0.3)
                         .animation(.easeInOut(duration: 1.0).repeatForever(), value: pulseAnimation)
                     Text(isConnected ? "LIVE" : "OFFLINE")
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .font(.caption)
                         .foregroundColor(isConnected ? .green : .gray)
                 }
             }

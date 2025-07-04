@@ -23,7 +23,7 @@ struct TabBarView: View {
                     impact.impactOccurred()
                 }) {
                     Image(systemName: tabIcons[idx])
-                        .font(.system(size: 22, weight: .medium))
+                        .font(.libreFranklinMedium(size: 22))
                         .foregroundColor(selectedTab == idx ? accentColor : secondaryColor)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)

@@ -25,7 +25,7 @@ struct ResponsiveLayoutView: View {
                                     impact.impactOccurred()
                                 }) {
                                     Text(categories[idx].uppercased())
-                                        .font(.system(size: 14, weight: .semibold, design: .default))
+                                        .font(.libreFranklinSemiBold(size: 14))
                                         .foregroundColor(
                                             selectedCategoryIndex == idx ? .white : 
                                             (categories[idx] == "all" ? .blue : (categoryColors[categories[idx]] ?? .blue))

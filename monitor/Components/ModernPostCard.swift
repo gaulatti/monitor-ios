@@ -34,7 +34,7 @@ struct ModernPostCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Content
             Text(post.content)
-                .font(.system(size: 15, weight: .medium))
+                .font(.bodyMedium)
                 .foregroundColor(Color(red: 0.89, green: 0.91, blue: 0.92)) // #e4e7eb
                 .lineLimit(nil)
             
@@ -42,7 +42,7 @@ struct ModernPostCard: View {
             HStack(spacing: 8) {
                 // Source badge
                 Text(post.source.uppercased())
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.caption)
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -51,7 +51,7 @@ struct ModernPostCard: View {
                 // Author
                 if !post.author.isEmpty {
                     Text(post.author)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.smallText)
                         .foregroundColor(Color(red: 0.61, green: 0.64, blue: 0.69)) // #9ca3af
                         .lineLimit(1)
                 }
@@ -60,7 +60,7 @@ struct ModernPostCard: View {
                 
                 // Timestamp
                 Text(post.posted_at.formatted(date: .omitted, time: .shortened))
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .font(.libreFranklinMedium(size: 11))
                     .foregroundColor(Color(red: 0.61, green: 0.64, blue: 0.69)) // #9ca3af
             }
             
