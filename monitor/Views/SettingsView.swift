@@ -6,10 +6,13 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 struct SettingsView: View {
-    @State private var notificationsEnabled = false
-    @State private var relevanceThreshold: Double = 5
+    @StateObject private var notificationManager = NotificationManager.shared
+    @State private var showingPermissionAlert = false
+    @State private var permissionDeniedAlert = false
+    @State private var showingTestAlert = false
     
     // Colors for the semaphore system
     private func thresholdColor(for value: Double) -> Color {
@@ -61,7 +64,7 @@ struct SettingsView: View {
                     HStack {
                         Image(systemName: "bell.fill")
                             .font(.bodyMedium)
-                            .foregroundColor(notificationsEnabled ? .blue : Color(red: 0.61, green: 0.64, blue: 0.69))
+                            .foregroundColor(notificationManager.isAuthorized ? .blue : Color(red: 0.61, green: 0.64, blue: 0.69))
                             .frame(width: 24)
                         
                         VStack(alignment: .leading, spacing: 2) {
@@ -77,9 +80,19 @@ struct SettingsView: View {
                         
                         Spacer()
                         
-                        Toggle("", isOn: $notificationsEnabled)
+                        Toggle("", isOn: $notificationManager.isAuthorized)
                             .labelsHidden()
                             .tint(.blue)
+                            .onChange(of: notificationManager.isAuthorized) { oldValue, newValue in
+                                if newValue && !oldValue {
+                                    Task {
+                                        await requestNotificationPermission()
+                                    }
+                                } else if !newValue && oldValue {
+                                    // User disabled notifications
+                                    showingPermissionAlert = true
+                                }
+                            }
                     }
                 }
                 .padding(16)
@@ -88,7 +101,7 @@ struct SettingsView: View {
                         .fill(.ultraThinMaterial)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.blue.opacity(notificationsEnabled ? 0.3 : 0.1), lineWidth: 1)
+                                .stroke(Color.blue.opacity(notificationManager.isAuthorized ? 0.3 : 0.1), lineWidth: 1)
                         )
                 )
                 
@@ -97,14 +110,14 @@ struct SettingsView: View {
                     HStack {
                         Image(systemName: "slider.horizontal.3")
                             .font(.bodyMedium)
-                            .foregroundColor(notificationsEnabled ? thresholdColor(for: relevanceThreshold) : Color(red: 0.61, green: 0.64, blue: 0.69))
+                            .foregroundColor(notificationManager.isAuthorized ? thresholdColor(for: notificationManager.relevanceThreshold) : Color(red: 0.61, green: 0.64, blue: 0.69))
                             .frame(width: 24)
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Relevance Threshold")
                                 .font(.bodyMedium)
                                 .fontWeight(.medium)
-                                .foregroundColor(notificationsEnabled ? Color(red: 0.89, green: 0.91, blue: 0.92) : Color(red: 0.61, green: 0.64, blue: 0.69))
+                                .foregroundColor(notificationManager.isAuthorized ? Color(red: 0.89, green: 0.91, blue: 0.92) : Color(red: 0.61, green: 0.64, blue: 0.69))
                             
                             Text("Minimum relevance level for notifications")
                                 .font(.caption)
@@ -114,27 +127,36 @@ struct SettingsView: View {
                         Spacer()
                     }
                     
-                    if notificationsEnabled {
+                    if notificationManager.isAuthorized {
                         VStack(spacing: 12) {
                             // Current value display
                             HStack {
-                                Text(String(format: "%.0f", relevanceThreshold))
+                                Text(String(format: "%.0f", notificationManager.relevanceThreshold))
                                     .font(.title2)
                                     .fontWeight(.bold)
-                                    .foregroundColor(thresholdColor(for: relevanceThreshold))
+                                    .foregroundColor(thresholdColor(for: notificationManager.relevanceThreshold))
                                 
-                                Text(thresholdDescription(for: relevanceThreshold))
+                                Text(thresholdDescription(for: notificationManager.relevanceThreshold))
                                     .font(.bodyMedium)
-                                    .foregroundColor(thresholdColor(for: relevanceThreshold))
+                                    .foregroundColor(thresholdColor(for: notificationManager.relevanceThreshold))
                                 
                                 Spacer()
+                                
+                                // Test notification button
+                                Button("Test") {
+                                    notificationManager.scheduleTestNotification()
+                                    showingTestAlert = true
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                                .tint(.blue)
                             }
                             
                             // Custom stepped slider
                             VStack(spacing: 8) {
                                 HStack(spacing: 0) {
                                     ForEach(0...10, id: \.self) { step in
-                                        let isActive = Double(step) <= relevanceThreshold
+                                        let isActive = Double(step) <= notificationManager.relevanceThreshold
                                         let stepColor = thresholdColor(for: Double(step))
                                         
                                         Rectangle()
@@ -146,8 +168,10 @@ struct SettingsView: View {
                                             )
                                             .onTapGesture {
                                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                                    relevanceThreshold = Double(step)
+                                                    notificationManager.relevanceThreshold = Double(step)
                                                 }
+                                                // Update server settings
+                                                notificationManager.updateServerSettings()
                                                 // Haptic feedback
                                                 let impact = UIImpactFeedbackGenerator(style: .light)
                                                 impact.impactOccurred()
@@ -185,17 +209,56 @@ struct SettingsView: View {
                         .fill(.ultraThinMaterial)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(notificationsEnabled ? thresholdColor(for: relevanceThreshold).opacity(0.3) : Color.gray.opacity(0.1), lineWidth: 1)
+                                .stroke(notificationManager.isAuthorized ? thresholdColor(for: notificationManager.relevanceThreshold).opacity(0.3) : Color.gray.opacity(0.1), lineWidth: 1)
                         )
                 )
-                .opacity(notificationsEnabled ? 1.0 : 0.5)
-                .animation(.easeInOut(duration: 0.3), value: notificationsEnabled)
+                .opacity(notificationManager.isAuthorized ? 1.0 : 0.5)
+                .animation(.easeInOut(duration: 0.3), value: notificationManager.isAuthorized)
             }
             .padding(.horizontal, 20)
             
             Spacer()
         }
         .background(Color(red: 0.07, green: 0.07, blue: 0.09)) // Same dark background as the app
+        .onAppear {
+            notificationManager.checkAuthorizationStatus()
+        }
+        .alert("Permission Required", isPresented: $showingPermissionAlert) {
+            Button("Settings") {
+                openAppSettings()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("To disable notifications, please go to Settings > Notifications > Monitor and turn off notifications.")
+        }
+        .alert("Permission Denied", isPresented: $permissionDeniedAlert) {
+            Button("OK") { }
+        } message: {
+            Text("Notification permission was denied. You can enable it later in Settings.")
+        }
+        .alert("Test Notification", isPresented: $showingTestAlert) {
+            Button("OK") { }
+        } message: {
+            Text("A test notification has been scheduled. You should receive it in a few seconds!")
+        }
+    }
+    
+    // MARK: - Notification Permission Methods
+    
+    private func requestNotificationPermission() async {
+        let granted = await notificationManager.requestPermission()
+        
+        await MainActor.run {
+            if !granted {
+                permissionDeniedAlert = true
+            }
+        }
+    }
+    
+    private func openAppSettings() {
+        if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(settingsUrl)
+        }
     }
 }
 
