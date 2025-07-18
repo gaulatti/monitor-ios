@@ -32,27 +32,22 @@ struct ModernPostCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Header with timestamp and source
+            // Header with timestamp and author
             HStack(spacing: 8) {
                 Text(post.posted_at.formatted(date: .omitted, time: .shortened))
-                    .font(.libreFranklinMedium(size: 11))
+                    .font(.bodyMedium)
                     .foregroundColor(Color(red: 0.61, green: 0.64, blue: 0.69)) // #9ca3af
-                
-                // Source badge
-                Text(post.source.uppercased())
-                    .font(.caption)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(accentColor, in: RoundedRectangle(cornerRadius: 3))
                 
                 Spacer()
                 
-                // Author (if available)
-                if !post.author.isEmpty {
-                    Text(post.author)
-                        .font(.caption)
-                        .foregroundColor(Color(red: 0.61, green: 0.64, blue: 0.69)) // #9ca3af
+                // Author badge (if available)
+                if !post.effectiveAuthor.isEmpty {
+                    Text(post.effectiveAuthor)
+                        .font(.bodyMedium)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(accentColor, in: RoundedRectangle(cornerRadius: 3))
                         .lineLimit(1)
                 }
             }

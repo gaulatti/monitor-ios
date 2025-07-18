@@ -19,12 +19,12 @@ struct MediaSectionView: View {
                     Button(action: { openURL(uri) }) {
                         HStack {
                             Image(systemName: "link")
-                                .font(.caption2)
+                                .font(.bodyMedium)
                             Text("Original (\(hostname))")
-                                .font(.caption2)
+                                .font(.bodyMedium)
                             Spacer()
                             Image(systemName: "arrow.up.right")
-                                .font(.caption2)
+                                .font(.bodyMedium)
                         }
                         .foregroundColor(.blue)
                         .padding(.horizontal, 8)
@@ -42,12 +42,12 @@ struct MediaSectionView: View {
                             Button(action: { openURL(post.uri ?? mediaUrl) }) {
                                 HStack {
                                     Image(systemName: "link")
-                                        .font(.caption2)
+                                        .font(.bodyMedium)
                                     Text(hostname)
-                                        .font(.caption2)
+                                        .font(.bodyMedium)
                                     Spacer()
                                     Image(systemName: "arrow.up.right")
-                                        .font(.caption2)
+                                        .font(.bodyMedium)
                                 }
                                 .foregroundColor(.blue)
                                 .padding(.horizontal, 8)

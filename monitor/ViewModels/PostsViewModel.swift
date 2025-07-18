@@ -49,7 +49,7 @@ class PostsViewModel: ObservableObject {
             print("API Post structure - ID: \(firstPost.id)")
             print("URI: \(firstPost.uri ?? "nil")")
             print("Media count: \(firstPost.media?.count ?? 0)")
-            print("Author: \(firstPost.author)")
+            print("Author: \(firstPost.effectiveAuthor)")
             print("Categories: \(firstPost.categories)")
         }
         

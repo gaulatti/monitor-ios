@@ -112,18 +112,9 @@ struct ContentView: View {
             }
         }
         
-        sseClient.onMessage = { message in
-            
-            // Extract the JSON string from the SSE message (strip 'data:' prefix)
-            let lines = message.components(separatedBy: .newlines)
-            guard let dataLine = lines.first(where: { $0.hasPrefix("data:") }) else { return }
-            let jsonString = dataLine.dropFirst("data:".count).trimmingCharacters(in: .whitespaces)
-            guard let data = jsonString.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  json["type"] as? String != "ping" else {
-                isConnected = true
-                return
-            }
+        sseClient.onMessage = { jsonString in
+            // The SSE client now sends the clean JSON string directly
+            guard let data = jsonString.data(using: .utf8) else { return }
 
             // Decode posts
             let decoder = JSONDecoder()
@@ -140,7 +131,8 @@ struct ContentView: View {
             }
 
             if let post = try? decoder.decode(Post.self, from: data) {
-
+                print("✅ ContentView: Successfully decoded SSE post - \(post.id)")
+                
                 DispatchQueue.main.async {
                     // Add to "all" category (always index 0 since "all" is first in categories array)
                     if let allViewModel = viewModels.first {
@@ -161,6 +153,8 @@ struct ContentView: View {
                         }
                     }
                 }
+            } else {
+                print("❌ ContentView: Failed to decode SSE message as Post")
             }
         }
         sseClient.connect(to: URL(string: "https://api.monitor.gaulatti.com/notifications")!)
@@ -186,24 +180,38 @@ struct ContentView: View {
             }
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date: \(dateStr)")
         }
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            guard let data = data,
-                  let posts = try? decoder.decode([Post].self, from: data) else { 
-                print("❌ Failed to fetch posts")
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("❌ Network error: \(error.localizedDescription)")
+                return
+            }
+            
+            guard let data = data else { 
+                print("❌ No data received")
                 return 
             }
-            DispatchQueue.main.async {
-                allPosts = posts
-                print("📊 Fetched \(posts.count) total posts")
+            
+            // Log first part of response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📄 API Response (first 500 chars): \(String(responseString.prefix(500)))")
+            }
+            
+            do {
+                let posts = try decoder.decode([Post].self, from: data)
+                print("✅ Successfully decoded \(posts.count) posts")
                 
-                // Create new view models with fresh data
-                viewModels = categories.map { cat in
-                    if cat == "all" {
-                        // For "all" category, include all posts regardless of their categories
-                        let vm = PostsViewModel(category: cat)
-                        vm.posts = Array(posts.prefix(50)) // Show more posts for "all"
-                        print("📋 'All' category: \(vm.posts.count) posts")
-                        return vm
+                DispatchQueue.main.async {
+                    allPosts = posts
+                    print("📊 Fetched \(posts.count) total posts")
+                    
+                    // Create new view models with fresh data
+                    viewModels = categories.map { cat in
+                        if cat == "all" {
+                            // For "all" category, include all posts regardless of their categories
+                            let vm = PostsViewModel(category: cat)
+                            vm.posts = Array(posts.prefix(50)) // Show more posts for "all"
+                            print("📋 'All' category: \(vm.posts.count) posts")
+                            return vm
                     } else if cat == "relevant" {
                         // For "relevant" category, include posts with relevance >= 4
                         let relevantPosts = posts.filter { $0.relevance >= 4 }
@@ -221,6 +229,24 @@ struct ContentView: View {
                     }
                 }
                 print("✅ Data refresh completed successfully")
+            }
+            } catch {
+                print("❌ Failed to decode posts: \(error)")
+                if let decodingError = error as? DecodingError {
+                    switch decodingError {
+                    case .keyNotFound(let key, let context):
+                        print("Missing key: \(key.stringValue) in \(context.debugDescription)")
+                    case .typeMismatch(let type, let context):
+                        print("Type mismatch for type \(type) in \(context.debugDescription)")
+                    case .valueNotFound(let type, let context):
+                        print("Value not found for type \(type) in \(context.debugDescription)")
+                    case .dataCorrupted(let context):
+                        print("Data corrupted: \(context.debugDescription)")
+                    @unknown default:
+                        print("Unknown decoding error")
+                    }
+                }
+                return 
             }
         }.resume()
     }
