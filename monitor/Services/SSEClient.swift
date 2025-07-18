@@ -48,6 +48,29 @@ class SSEClient: NSObject, URLSessionDataDelegate {
             buffer = String(buffer[range.upperBound...])
 
             let message = event.dropFirst(5).trimmingCharacters(in: .whitespaces)
+            
+            // Debug: Log received message structure
+            if !message.isEmpty {
+                print("SSE Raw message received: \(message.prefix(200))...")
+                
+                // Try to parse as Post to verify field mapping
+                if let data = message.data(using: .utf8) {
+                    do {
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .iso8601
+                        let post = try decoder.decode(Post.self, from: data)
+                        print("SSE Post successfully parsed - ID: \(post.id)")
+                        print("URI: \(post.uri ?? "nil")")
+                        print("Media count: \(post.media?.count ?? 0)")
+                        print("Author: \(post.author)")
+                        print("Categories: \(post.categories)")
+                    } catch {
+                        print("SSE Post parsing error: \(error)")
+                        print("Failed message: \(message)")
+                    }
+                }
+            }
+            
             DispatchQueue.main.async {
                 self.onMessage?(message)
             }

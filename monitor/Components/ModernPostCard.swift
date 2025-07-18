@@ -31,52 +31,59 @@ struct ModernPostCard: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
+            // Header with timestamp and source
+            HStack(spacing: 8) {
+                Text(post.posted_at.formatted(date: .omitted, time: .shortened))
+                    .font(.libreFranklinMedium(size: 11))
+                    .foregroundColor(Color(red: 0.61, green: 0.64, blue: 0.69)) // #9ca3af
+                
+                // Source badge
+                Text(post.source.uppercased())
+                    .font(.caption)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(accentColor, in: RoundedRectangle(cornerRadius: 3))
+                
+                Spacer()
+                
+                // Author (if available)
+                if !post.author.isEmpty {
+                    Text(post.author)
+                        .font(.caption)
+                        .foregroundColor(Color(red: 0.61, green: 0.64, blue: 0.69)) // #9ca3af
+                        .lineLimit(1)
+                }
+            }
+            
             // Content
             Text(post.content)
                 .font(.bodyMedium)
                 .foregroundColor(Color(red: 0.89, green: 0.91, blue: 0.92)) // #e4e7eb
                 .lineLimit(nil)
+                .padding(.top, 2)
             
-            // Footer
-            HStack(spacing: 8) {
-                // Source badge
-                Text(post.source.uppercased())
-                    .font(.caption)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(accentColor, in: RoundedRectangle(cornerRadius: 4))
-                
-                // Author
-                if !post.author.isEmpty {
-                    Text(post.author)
-                        .font(.smallText)
-                        .foregroundColor(Color(red: 0.61, green: 0.64, blue: 0.69)) // #9ca3af
-                        .lineLimit(1)
-                }
-                
-                Spacer()
-                
-                // Timestamp
-                Text(post.posted_at.formatted(date: .omitted, time: .shortened))
-                    .font(.libreFranklinMedium(size: 11))
-                    .foregroundColor(Color(red: 0.61, green: 0.64, blue: 0.69)) // #9ca3af
+            // Media section (NEW - consolidated media/links)
+            if post.uri != nil || (post.media?.isEmpty == false) {
+                MediaSectionView(post: post)
+                    .padding(.top, 6)
             }
             
-            // Relevance indicator
+            // Relevance indicator at bottom
             if post.relevance > 0 {
                 HStack {
                     ForEach(0..<post.relevance, id: \.self) { _ in
                         Circle()
                             .fill(accentColor)
-                            .frame(width: 4, height: 4)
+                            .frame(width: 3, height: 3)
                     }
                     Spacer()
                 }
+                .padding(.top, 6)
             }
         }
-        .padding(16)
+        .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(.ultraThinMaterial)
