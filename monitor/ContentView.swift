@@ -48,23 +48,32 @@ struct ContentView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Modern Header
-                HeaderView(
-                    categories: categories,
-                    categoryColors: categoryColors,
-                    selectedCategoryIndex: selectedCategoryIndex,
-                    viewModels: viewModels,
-                    isConnected: isConnected,
-                    pulseAnimation: pulseAnimation
-                )
+                // Main content based on selected tab
+                if selectedTab == 0 || selectedTab == 1 {
+                    // Home and Bookmarks tabs (currently same content)
+                    VStack(spacing: 0) {
+                        // Modern Header
+                        HeaderView(
+                            categories: categories,
+                            categoryColors: categoryColors,
+                            selectedCategoryIndex: selectedCategoryIndex,
+                            viewModels: viewModels,
+                            isConnected: isConnected,
+                            pulseAnimation: pulseAnimation
+                        )
 
-                // Responsive layout for categories and posts
-                ResponsiveLayoutView(
-                    categories: categories,
-                    categoryColors: categoryColors,
-                    viewModels: viewModels,
-                    selectedCategoryIndex: $selectedCategoryIndex
-                )
+                        // Responsive layout for categories and posts
+                        ResponsiveLayoutView(
+                            categories: categories,
+                            categoryColors: categoryColors,
+                            viewModels: viewModels,
+                            selectedCategoryIndex: $selectedCategoryIndex
+                        )
+                    }
+                } else if selectedTab == 2 {
+                    // Settings tab
+                    SettingsView()
+                }
 
                 // Modern TabBar
                 TabBarView(
