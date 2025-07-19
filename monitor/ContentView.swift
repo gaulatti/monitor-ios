@@ -88,6 +88,9 @@ struct ContentView: View {
             }
             setupSSE()
             startPulseAnimation()
+
+            // Send app opened analytics
+            NotificationManager.shared.sendAnalytics(event: "app_opened")
         }
         .onDisappear {
             pollingTimer?.invalidate()
@@ -141,18 +144,25 @@ struct ContentView: View {
 
             if let post = try? decoder.decode(Post.self, from: data) {
                 print("✅ ContentView: Successfully decoded SSE post - \(post.id)")
-                
+
+                // Send analytics about received post
+                NotificationManager.shared.sendAnalytics(event: "post_received_sse", data: [
+                    "postId": post.id,
+                    "relevance": post.relevance,
+                    "categories": post.categories
+                ])
+
                 DispatchQueue.main.async {
                     // Add to "all" category (always index 0 since "all" is first in categories array)
                     if let allViewModel = viewModels.first {
                         allViewModel.insertPost(post)
                     }
-                    
+
                     // Add to "relevant" category if relevance >= 4 (index 1 since "relevant" is second)
                     if post.relevance >= 4, let relevantViewModel = viewModels[safe: 1] {
                         relevantViewModel.insertPost(post)
                     }
-                    
+
                     // Add to specific categories
                     for (idx, cat) in categories.enumerated() {
                         if cat != "all" && cat != "relevant" && post.categories.contains(cat) {
@@ -168,7 +178,7 @@ struct ContentView: View {
         }
         sseClient.connect(to: URL(string: "https://api.monitor.gaulatti.com/notifications")!)
     }
-    
+
     private func startPulseAnimation() {
         pulseAnimation = true
     }
@@ -176,7 +186,7 @@ struct ContentView: View {
     // Add this helper function inside ContentView
     private func fetchAndDistributePosts() {
         print("🔄 Fetching fresh posts from server...")
-        
+
         guard let url = URL(string: "https://api.monitor.gaulatti.com/posts") else { return }
         let decoder = JSONDecoder()
         let isoFormatter = ISO8601DateFormatter()
@@ -194,25 +204,31 @@ struct ContentView: View {
                 print("❌ Network error: \(error.localizedDescription)")
                 return
             }
-            
+
             guard let data = data else { 
                 print("❌ No data received")
                 return 
             }
-            
+
             // Log first part of response for debugging
             if let responseString = String(data: data, encoding: .utf8) {
                 print("📄 API Response (first 500 chars): \(String(responseString.prefix(500)))")
             }
-            
-            do {
+
+                do {
                 let posts = try decoder.decode([Post].self, from: data)
                 print("✅ Successfully decoded \(posts.count) posts")
-                
+
+                // Send analytics about posts fetched
+                NotificationManager.shared.sendAnalytics(event: "posts_fetched", data: [
+                    "count": posts.count,
+                    "source": "api"
+                ])
+
                 DispatchQueue.main.async {
                     allPosts = posts
                     print("📊 Fetched \(posts.count) total posts")
-                    
+
                     // Create new view models with fresh data
                     viewModels = categories.map { cat in
                         if cat == "all" {
@@ -259,18 +275,20 @@ struct ContentView: View {
             }
         }.resume()
     }
-    
+
     private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
         switch newPhase {
         case .active:
             // App became active (foreground)
             if oldPhase == .background || oldPhase == .inactive {
                 print("🚀 App returned to foreground - refreshing data and reconnecting SSE")
+                NotificationManager.shared.sendAnalytics(event: "app_foreground")
                 refreshAppData()
             }
         case .background:
             // App went to background
             print("📱 App went to background - disconnecting SSE")
+            NotificationManager.shared.sendAnalytics(event: "app_background")
             cleanupConnections()
         case .inactive:
             // App became inactive (transitioning)
