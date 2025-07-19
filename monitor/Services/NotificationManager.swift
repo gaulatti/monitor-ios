@@ -15,14 +15,25 @@ class NotificationManager: ObservableObject {
   @Published var isAuthorized = false
   @Published var relevanceThreshold: Double {
     didSet {
-      UserDefaults.standard.set(relevanceThreshold, forKey: "notificationRelevanceThreshold")
+      // Always store as integer to avoid floating point issues
+      let intValue = Int(relevanceThreshold.rounded())
+      UserDefaults.standard.set(intValue, forKey: "notificationRelevanceThreshold")
+      
+      // Only update if the value actually changed to avoid infinite recursion
+      let roundedValue = Double(intValue)
+      if relevanceThreshold != roundedValue {
+        relevanceThreshold = roundedValue
+      }
     }
   }
+  
+  // Queue for pending analytics events before device registration
+  private var pendingAnalytics: [(event: String, data: [String: Any])] = []
 
   private init() {
-    // Load saved threshold, default to 5
-    self.relevanceThreshold =
-      UserDefaults.standard.object(forKey: "notificationRelevanceThreshold") as? Double ?? 5.0
+    // Load saved threshold, default to 5 (as integer)
+    let savedThreshold = UserDefaults.standard.object(forKey: "notificationRelevanceThreshold") as? Int ?? 5
+    self.relevanceThreshold = Double(savedThreshold)
 
     checkAuthorizationStatus()
   }
@@ -107,7 +118,7 @@ class NotificationManager: ObservableObject {
     let body: [String: Any] = [
       "deviceToken": token,
       "platform": "ios",
-      "relevanceThreshold": relevanceThreshold,
+      "relevanceThreshold": Int(relevanceThreshold.rounded()), // Send as integer
       "isActive": isAuthorized,
       "deviceInfo": [
         "deviceId": deviceId,
@@ -146,6 +157,9 @@ class NotificationManager: ObservableObject {
               UserDefaults.standard.set(serverId, forKey: "serverDeviceId")
               print("✅ Server device ID: \(serverId)")
             }
+            
+            // Send any pending analytics events now that device is registered
+            self.sendPendingAnalytics()
           } else {
             print("⚠️ Server responded with status code: \(httpResponse.statusCode)")
             if let data = data, let responseString = String(data: data, encoding: .utf8) {
@@ -173,7 +187,7 @@ class NotificationManager: ObservableObject {
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
     let body: [String: Any] = [
-      "relevanceThreshold": relevanceThreshold,
+      "relevanceThreshold": Int(relevanceThreshold.rounded()), // Send as integer
       "isActive": isAuthorized,
       "lastUpdated": ISO8601DateFormatter().string(from: Date()),
     ]
@@ -213,7 +227,18 @@ class NotificationManager: ObservableObject {
 
   func markPostAsRead(_ postId: String) {
     // Track that user has seen this post (to avoid duplicate notifications)
-    guard let deviceToken = UserDefaults.standard.string(forKey: "deviceToken") else { return }
+    guard let deviceToken = UserDefaults.standard.string(forKey: "deviceToken") else { 
+      print("⚠️ No device token available, skipping mark as read for post: \(postId)")
+      return 
+    }
+    
+    // If we have a token but device isn't registered yet, register it first
+    if !UserDefaults.standard.bool(forKey: "deviceTokenRegistered") {
+      print("🔄 Device token available but not registered, registering now...")
+      sendDeviceTokenToServer(deviceToken)
+      // Don't queue read events - they're less critical than analytics
+      return
+    }
 
     guard let url = URL(string: "https://api.monitor.gaulatti.com/devices/\(deviceToken)/read")
     else { return }
@@ -244,8 +269,25 @@ class NotificationManager: ObservableObject {
 
   func sendAnalytics(event: String, data: [String: Any] = [:]) {
     // Send analytics to help with notification optimization
-    guard let deviceToken = UserDefaults.standard.string(forKey: "deviceToken") else { return }
+    guard let deviceToken = UserDefaults.standard.string(forKey: "deviceToken") else { 
+      print("⚠️ No device token available, queuing analytics event: \(event)")
+      pendingAnalytics.append((event: event, data: data))
+      return 
+    }
+    
+    // If we have a token but device isn't registered yet, register it first
+    if !UserDefaults.standard.bool(forKey: "deviceTokenRegistered") {
+      print("🔄 Device token available but not registered, registering now...")
+      sendDeviceTokenToServer(deviceToken)
+      // Queue this event to be sent after registration
+      pendingAnalytics.append((event: event, data: data))
+      return
+    }
 
+    sendAnalyticsEvent(event: event, data: data, deviceToken: deviceToken)
+  }
+  
+  private func sendAnalyticsEvent(event: String, data: [String: Any], deviceToken: String) {
     guard let url = URL(string: "https://api.monitor.gaulatti.com/analytics") else { return }
 
     var request = URLRequest(url: url)
@@ -275,5 +317,20 @@ class NotificationManager: ObservableObject {
     } catch {
       print("❌ Error serializing analytics request: \(error)")
     }
+  }
+  
+  // Send any queued analytics events after device registration
+  private func sendPendingAnalytics() {
+    guard let deviceToken = UserDefaults.standard.string(forKey: "deviceToken"),
+          UserDefaults.standard.bool(forKey: "deviceTokenRegistered") else { return }
+    
+    print("📤 Sending \(pendingAnalytics.count) pending analytics events")
+    
+    for pendingEvent in pendingAnalytics {
+      sendAnalyticsEvent(event: pendingEvent.event, data: pendingEvent.data, deviceToken: deviceToken)
+    }
+    
+    // Clear the pending queue
+    pendingAnalytics.removeAll()
   }
 }
