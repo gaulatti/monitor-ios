@@ -85,7 +85,7 @@ class PostsViewModel: ObservableObject {
         withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
             posts.insert(post, at: 0)
             // Keep only the most recent posts (more for "all", less for specific categories)
-            let maxPosts = category == "all" ? 50 : 30
+            let maxPosts = category == "all" ? 1000 : 500
             if posts.count > maxPosts {
                 posts.removeLast()
             }
