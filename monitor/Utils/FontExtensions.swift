@@ -93,6 +93,12 @@ extension Font {
         return .libreFranklinRegular(size: 12)
     }
     
+    
+    /// Mid-point between medium and small
+    static var subMedium: Font {
+        return .libreFranklinRegular(size: 14)
+    }
+    
     /// Caption font
     static var caption: Font {
         return .libreFranklinMedium(size: 10)

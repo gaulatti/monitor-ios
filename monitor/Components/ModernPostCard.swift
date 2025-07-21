@@ -43,7 +43,7 @@ struct ModernPostCard: View {
                 // Author badge (if available)
                 if !post.effectiveAuthor.isEmpty {
                     Text(post.effectiveAuthor)
-                        .font(.bodyMedium)
+                        .font(.subMedium)
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)

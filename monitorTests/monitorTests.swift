@@ -15,6 +15,7 @@ struct monitorTests {
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.
     }
     
+
     @Test func testNotificationRelevanceThreshold() async throws {
         // Test that NotificationManager's shouldShowNotification respects relevance threshold
         let notificationManager = NotificationManager.shared
@@ -23,6 +24,7 @@ struct monitorTests {
         notificationManager.relevanceThreshold = 5.0
         
         // Create test posts with different relevance scores
+
         let lowRelevancePost = Post(
             id: "test1",
             content: "Low relevance post",
@@ -42,6 +44,7 @@ struct monitorTests {
         
         let highRelevancePost = Post(
             id: "test2",
+
             content: "High relevance post", 
             source: "test",
             posted_at: Date(),
@@ -57,6 +60,7 @@ struct monitorTests {
             lang: nil
         )
         
+
         let exactThresholdPost = Post(
             id: "test3",
             content: "Exact threshold post",
