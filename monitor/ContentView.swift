@@ -102,7 +102,8 @@ struct ContentView: View {
             handleScenePhaseChange(from: oldPhase, to: newPhase)
         }
         .onChange(of: notificationManager.relevanceThreshold) { oldThreshold, newThreshold in
-            handleRelevanceThresholdChange(from: oldThreshold, to: newThreshold)
+            print("🎯 Relevance threshold changed from \(oldThreshold) to \(newThreshold) - updating relevant category")
+            updateRelevantCategory()
         }
         .preferredColorScheme(.dark)
     }
@@ -162,8 +163,8 @@ struct ContentView: View {
                         allViewModel.insertPost(post)
                     }
 
-                    // Add to "relevant" category using notification threshold (index 1 since "relevant" is second)
-                    if post.relevance >= Int(notificationManager.relevanceThreshold), let relevantViewModel = viewModels[safe: 1] {
+                    // Add to "relevant" category if relevance meets user's threshold (index 1 since "relevant" is second)
+                    if Double(post.relevance) >= notificationManager.relevanceThreshold, let relevantViewModel = viewModels[safe: 1] {
                         relevantViewModel.insertPost(post)
                     }
 
@@ -242,11 +243,12 @@ struct ContentView: View {
                             print("📋 'All' category: \(vm.posts.count) posts")
                             return vm
                     } else if cat == "relevant" {
-                        // For "relevant" category, include posts with relevance >= notification threshold
-                        let relevantPosts = posts.filter { $0.relevance >= Int(notificationManager.relevanceThreshold) }
+
+                        // For "relevant" category, include posts with relevance >= user's threshold
+                        let relevantPosts = posts.filter { Double($0.relevance) >= notificationManager.relevanceThreshold }
                         let vm = PostsViewModel(category: cat)
                         vm.posts = Array(relevantPosts.prefix(30))
-                        print("🔥 'Relevant' category: \(vm.posts.count) posts (threshold: \(Int(notificationManager.relevanceThreshold)))")
+                        print("🔥 'Relevant' category: \(vm.posts.count) posts (threshold: \(notificationManager.relevanceThreshold))")
                         return vm
                     } else {
                         // For specific categories, filter by category
@@ -355,6 +357,19 @@ struct ContentView: View {
         // Update connection state
         isConnected = false
         pulseAnimation = false
+    }
+    
+    private func updateRelevantCategory() {
+        // Find the "relevant" category view model (index 1)
+        guard let relevantViewModel = viewModels[safe: 1] else { return }
+        
+        // Re-filter all posts based on the new threshold
+        let relevantPosts = allPosts.filter { Double($0.relevance) >= notificationManager.relevanceThreshold }
+        
+        DispatchQueue.main.async {
+            relevantViewModel.posts = Array(relevantPosts.prefix(30))
+            print("🔄 Updated 'Relevant' category: \(relevantViewModel.posts.count) posts with threshold \(self.notificationManager.relevanceThreshold)")
+        }
     }
 }
 
