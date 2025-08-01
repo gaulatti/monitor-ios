@@ -77,6 +77,11 @@ class NotificationManager: ObservableObject {
       "Push notifications are working! You'll receive notifications for posts with relevance ≥ \(Int(relevanceThreshold))"
     content.sound = .default
     content.badge = 1
+    
+    // Add test post ID for deep linking test
+    content.userInfo = ["postId": "test-post-id"]
+    content.categoryIdentifier = "POST_NOTIFICATION"
+    content.threadIdentifier = "monitor-posts"
 
     let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
     let request = UNNotificationRequest(
@@ -86,7 +91,7 @@ class NotificationManager: ObservableObject {
       if let error = error {
         print("❌ Error scheduling test notification: \(error)")
       } else {
-        print("✅ Test notification scheduled")
+        print("✅ Test notification scheduled with deep link metadata")
       }
     }
   }
@@ -128,7 +133,7 @@ class NotificationManager: ObservableObject {
         "buildNumber": buildNumber,
         "bundleId": bundleId,
         "timeZone": timeZone,
-        "language": Locale.current.languageCode ?? "en",
+        "language": Locale.current.language.languageCode?.identifier ?? "en",
       ],
       "preferences": [
         "categories": ["all", "relevant"],  // Default categories, could be made configurable

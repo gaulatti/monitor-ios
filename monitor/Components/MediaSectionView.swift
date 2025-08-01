@@ -37,8 +37,8 @@ struct MediaSectionView: View {
                 
                 // Media links (non-images only) - stacked vertically
                 if let media = post.media {
-                    ForEach(Array(media.enumerated()), id: \.offset) { index, mediaUrl in
-                        if !mediaUrl.isImageUrl(), let hostname = mediaUrl.getUrlHostname() {
+                    ForEach(Array(media.enumerated()), id: \.offset) { index, mediaItem in
+                        if let mediaUrl = mediaItem.url, !mediaUrl.isImageUrl(), let hostname = mediaUrl.getUrlHostname() {
                             Button(action: { openURL(post.uri ?? mediaUrl) }) {
                                 HStack {
                                     Image(systemName: "link")
@@ -63,7 +63,7 @@ struct MediaSectionView: View {
             
             // Images in a separate grid below the links
             if let media = post.media {
-                let imageUrls = media.filter { $0.isImageUrl() }
+                let imageUrls = media.compactMap { $0.url }.filter { $0.isImageUrl() }
                 if !imageUrls.isEmpty {
                     VStack(spacing: 4) {
                         ForEach(Array(imageUrls.prefix(3).enumerated()), id: \.offset) { index, mediaUrl in

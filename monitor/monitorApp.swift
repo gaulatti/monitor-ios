@@ -80,7 +80,36 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Set notification center delegate
         UNUserNotificationCenter.current().delegate = self
         
+        // Register notification categories and actions
+        setupNotificationCategories()
+        
         return true
+    }
+    
+    private func setupNotificationCategories() {
+        // Define actions for post notifications
+        let readAction = UNNotificationAction(
+            identifier: "READ_ACTION",
+            title: "Mark as Read",
+            options: []
+        )
+        
+        let openAction = UNNotificationAction(
+            identifier: "OPEN_ACTION", 
+            title: "Open",
+            options: [.foreground]
+        )
+        
+        // Create category for post notifications
+        let postCategory = UNNotificationCategory(
+            identifier: "POST_NOTIFICATION",
+            actions: [readAction, openAction],
+            intentIdentifiers: [],
+            options: [.customDismissAction]
+        )
+        
+        // Register the categories
+        UNUserNotificationCenter.current().setNotificationCategories([postCategory])
     }
     
     // Called when APNs has assigned the device a unique token
@@ -115,12 +144,30 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         print("👆 User tapped notification: \(response.notification.request.content.title)")
         
-        // Handle notification tap - you could navigate to specific content here
-        // For example, if the notification contains a post ID, you could navigate to that post
         let userInfo = response.notification.request.content.userInfo
-        if let postId = userInfo["postId"] as? String {
-            print("📰 Opening post with ID: \(postId)")
-            // TODO: Navigate to specific post
+        
+        switch response.actionIdentifier {
+        case "READ_ACTION":
+            // User marked as read without opening app
+            if let postId = userInfo["postId"] as? String {
+                print("📖 Marking post \(postId) as read from notification")
+                NotificationManager.shared.markPostAsRead(postId)
+            }
+            
+        case "OPEN_ACTION", UNNotificationDefaultActionIdentifier:
+            // User wants to open the app/post
+            if let postId = userInfo["postId"] as? String {
+                print("📰 Opening post with ID: \(postId)")
+                // Navigate to specific post using NavigationManager
+                NavigationManager.shared.handleDeepLink(postId: postId)
+            }
+            
+        case UNNotificationDismissActionIdentifier:
+            // User dismissed the notification
+            print("🚫 User dismissed notification")
+            
+        default:
+            break
         }
         
         completionHandler()

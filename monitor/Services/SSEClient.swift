@@ -15,7 +15,7 @@ struct SSEPostData: Codable {
     let authorHandle: String?
     let authorAvatar: String?
     let uri: String?
-    let media: [String]?
+    let media: [MediaItem]?
     let linkPreview: String? // Note: SSE sends string instead of object
     let lang: String?
     // SSE-specific fields that we ignore
@@ -34,7 +34,7 @@ struct SSEPostData: Codable {
         case received_at, timestamp, original, author_id
     }
     
-    // Custom initializer to handle null values in media array
+    // Custom initializer to handle different media formats
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -57,9 +57,29 @@ struct SSEPostData: Codable {
         hash = try container.decodeIfPresent(String.self, forKey: .hash)
         author_id = try container.decodeIfPresent(String.self, forKey: .author_id)
         
-        // Handle media array with potential null values
-        if let mediaArray = try container.decodeIfPresent([String?].self, forKey: .media) {
-            media = mediaArray.compactMap { $0 }
+        // Handle media array - can be strings or objects
+        if container.contains(.media) {
+            do {
+                // First try to decode as array of MediaItem objects
+                media = try container.decodeIfPresent([MediaItem].self, forKey: .media)
+            } catch {
+                print("⚠️ SSE Media decoding as objects failed: \(error)")
+                // If that fails, try to decode as array of strings (backwards compatibility)
+                do {
+                    if let stringArray = try container.decodeIfPresent([String?].self, forKey: .media) {
+                        media = stringArray.compactMap { urlString in
+                            guard let urlString = urlString else { return nil }
+                            return try? MediaItem(from: DummyDecoder(value: urlString))
+                        }
+                    } else {
+                        media = nil
+                    }
+                } catch {
+                    print("⚠️ SSE Media decoding as strings also failed: \(error)")
+                    // Last resort - set to empty array
+                    media = []
+                }
+            }
         } else {
             media = nil
         }
@@ -191,8 +211,32 @@ class SSEClient: NSObject, URLSessionDataDelegate {
                 print("Author: \(sseData.effectiveAuthor)")
                 print("Categories: \(sseData.categories)")
                 
-                DispatchQueue.main.async {
-                    self.onMessage?(messageData ?? "")
+                // Convert SSEPostData to Post
+                let post = Post(
+                    id: sseData.id,
+                    content: sseData.content,
+                    source: sseData.source,
+                    posted_at: sseData.posted_at,
+                    categories: sseData.categories,
+                    author: sseData.author,
+                    relevance: sseData.relevance,
+                    authorName: sseData.authorName,
+                    authorHandle: sseData.authorHandle,
+                    authorAvatar: sseData.authorAvatar,
+                    uri: sseData.uri,
+                    media: sseData.media,
+                    linkPreview: nil, // SSE sends string, Post expects object
+                    lang: sseData.lang
+                )
+                
+                // Encode to JSON and send to ContentView
+                let postEncoder = JSONEncoder()
+                postEncoder.dateEncodingStrategy = .iso8601
+                if let postData = try? postEncoder.encode(post),
+                   let postJson = String(data: postData, encoding: .utf8) {
+                    DispatchQueue.main.async {
+                        self.onMessage?(postJson)
+                    }
                 }
             } catch {
                 print("SSE Post parsing error: \(error)")

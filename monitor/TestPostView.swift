@@ -21,9 +21,9 @@ struct TestPostView: View {
         authorAvatar: "https://example.com/avatar.jpg",
         uri: "https://example.com/original-post",
         media: [
-            "https://example.com/image1.jpg",
-            "https://example.com/document.pdf",
-            "https://invalid-protocol.at://should-be-ignored"
+            MediaItem(url: "https://example.com/image1.jpg"),
+            MediaItem(url: "https://example.com/document.pdf"),
+            MediaItem(url: "https://invalid-protocol.at://should-be-ignored")
         ],
         linkPreview: LinkPreview(
             title: "Test Link Preview",

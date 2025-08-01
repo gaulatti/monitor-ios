@@ -12,6 +12,7 @@ struct ModernPostCard: View {
     let columnCategory: String
     @State private var isPressed = false
     @State private var isLongPressed = false
+    @StateObject private var navigationManager = NavigationManager.shared
     
     var accentColor: Color {
         if columnCategory.lowercased() == "all" {
@@ -106,6 +107,9 @@ struct ModernPostCard: View {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                     isPressed = true
                 }
+                
+                // Navigate to post detail
+                navigationManager.navigateToPost(post)
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {

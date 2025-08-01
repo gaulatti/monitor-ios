@@ -33,6 +33,7 @@ struct ContentView: View {
     @State private var isConnected = false
     @State private var pulseAnimation = false
     @StateObject private var notificationManager = NotificationManager.shared
+    @StateObject private var navigationManager = NavigationManager.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -104,6 +105,21 @@ struct ContentView: View {
         .onChange(of: notificationManager.relevanceThreshold) { oldThreshold, newThreshold in
             print("🎯 Relevance threshold changed from \(oldThreshold) to \(newThreshold) - updating relevant category")
             updateRelevantCategory()
+        }
+        // Handle deep link navigation from notifications
+        .onChange(of: navigationManager.deepLinkPostId) { oldPostId, newPostId in
+            if let postId = newPostId {
+                handleDeepLinkToPost(postId: postId)
+            }
+        }
+        // Present post detail sheet
+        .sheet(isPresented: $navigationManager.showPostDetail) {
+            if let selectedPost = navigationManager.selectedPost {
+                PostDetailView(post: selectedPost, categoryColors: categoryColors)
+                    .onDisappear {
+                        navigationManager.dismissPostDetail()
+                    }
+            }
         }
         .preferredColorScheme(.dark)
     }
@@ -344,6 +360,43 @@ struct ContentView: View {
         pulseAnimation = false
         
         print("🧹 Cleared all data - ready for fresh start")
+    }
+    
+    private func handleDeepLinkToPost(postId: String) {
+        print("🔗 ContentView: Handling deep link to post \(postId)")
+        
+        // Search for the post in all loaded posts
+        if let post = allPosts.first(where: { $0.id == postId }) {
+            print("✅ Found post for deep link: \(post.id)")
+            navigationManager.navigateToPost(post)
+            navigationManager.deepLinkPostId = nil // Clear the deep link
+        } else {
+            print("⚠️ Post \(postId) not found in current data")
+            
+            // For testing purposes, create a mock post if it's the test post ID
+            if postId == "test-post-id" {
+                print("🧪 Creating test post for deep link testing")
+                let testPost = Post(
+                    id: "test-post-id",
+                    content: "This is a test post created for deep linking from notifications. If you're seeing this, the notification deep linking feature is working correctly!",
+                    source: "test-notification",
+                    posted_at: Date(),
+                    categories: ["test", "notification"],
+                    author: "System",
+                    relevance: 10,
+                    authorName: "Monitor System",
+                    authorHandle: "@monitor",
+                    authorAvatar: nil,
+                    uri: "https://monitor.gaulatti.com",
+                    media: nil,
+                    linkPreview: nil,
+                    lang: "en"
+                )
+                navigationManager.navigateToPost(testPost)
+            }
+            
+            navigationManager.deepLinkPostId = nil // Clear the deep link
+        }
     }
     
     private func cleanupConnections() {
