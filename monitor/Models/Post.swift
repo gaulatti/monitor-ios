@@ -63,34 +63,59 @@ struct Post: Identifiable, Codable, Equatable {
     let media: [MediaItem]?
     let linkPreview: LinkPreview?
     let lang: String?
+    let hash: String?
+    let uuid: String?
+    let matchScore: Double?
 
     enum CodingKeys: String, CodingKey {
-        case id, content, source, posted_at, categories, author, relevance
+        case id, content, source, categories, author, relevance, hash, uuid, uri, media, lang
+        case posted_at  // API uses posted_at directly
         case authorName = "author_name"
         case authorHandle = "author_handle" 
         case authorAvatar = "author_avatar"
-        case uri, media, linkPreview = "link_preview", lang
+        case linkPreview = "link_preview"
+        case matchScore = "match_score"
     }
     
-    // Custom initializer to handle different media formats
+    // Custom initializer to handle different formats from API
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        id = try container.decode(String.self, forKey: .id)
+        // Handle ID - can be Int or String from API
+        if let intId = try? container.decode(Int.self, forKey: .id) {
+            id = String(intId)
+        } else {
+            id = try container.decode(String.self, forKey: .id)
+        }
+        
         content = try container.decode(String.self, forKey: .content)
         source = try container.decode(String.self, forKey: .source)
-        posted_at = try container.decode(Date.self, forKey: .posted_at)
-        categories = try container.decode([String].self, forKey: .categories)
-        author = try container.decodeIfPresent(String.self, forKey: .author)
         relevance = try container.decode(Int.self, forKey: .relevance)
+        
+        // Handle date - API sends posted_at as ISO string
+        if let dateString = try? container.decode(String.self, forKey: .posted_at) {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            posted_at = formatter.date(from: dateString) ?? Date()
+        } else {
+            posted_at = try container.decode(Date.self, forKey: .posted_at)
+        }
+        
+        // Categories might be missing in events API
+        categories = try container.decodeIfPresent([String].self, forKey: .categories) ?? []
+        
+        author = try container.decodeIfPresent(String.self, forKey: .author)
         authorName = try container.decodeIfPresent(String.self, forKey: .authorName)
         authorHandle = try container.decodeIfPresent(String.self, forKey: .authorHandle)
         authorAvatar = try container.decodeIfPresent(String.self, forKey: .authorAvatar)
         uri = try container.decodeIfPresent(String.self, forKey: .uri)
         linkPreview = try container.decodeIfPresent(LinkPreview.self, forKey: .linkPreview)
         lang = try container.decodeIfPresent(String.self, forKey: .lang)
+        hash = try container.decodeIfPresent(String.self, forKey: .hash)
+        uuid = try container.decodeIfPresent(String.self, forKey: .uuid)
+        matchScore = try container.decodeIfPresent(Double.self, forKey: .matchScore)
         
-        // Handle media array - can be strings or objects
+        // Handle media array - can be strings or objects or missing
         if container.contains(.media) {
             do {
                 // First try to decode as array of MediaItem objects
@@ -116,10 +141,12 @@ struct Post: Identifiable, Codable, Equatable {
         } else {
             media = nil
         }
+        
+        // The new properties are already initialized above when decoding
     }
     
     // Add memberwise initializer back
-    init(id: String, content: String, source: String, posted_at: Date, categories: [String], author: String?, relevance: Int, authorName: String?, authorHandle: String?, authorAvatar: String?, uri: String?, media: [MediaItem]?, linkPreview: LinkPreview?, lang: String?) {
+    init(id: String, content: String, source: String, posted_at: Date, categories: [String], author: String?, relevance: Int, authorName: String?, authorHandle: String?, authorAvatar: String?, uri: String?, media: [MediaItem]?, linkPreview: LinkPreview?, lang: String?, hash: String?, uuid: String?, matchScore: Double?) {
         self.id = id
         self.content = content
         self.source = source
@@ -134,6 +161,9 @@ struct Post: Identifiable, Codable, Equatable {
         self.media = media
         self.linkPreview = linkPreview
         self.lang = lang
+        self.hash = hash
+        self.uuid = uuid
+        self.matchScore = matchScore
     }
     
     // Computed property to get the effective author name

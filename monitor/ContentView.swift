@@ -24,7 +24,7 @@ struct ContentView: View {
     
     @State private var selectedTab = 0
     @State private var selectedCategoryIndex = 0
-    private let tabIcons = ["house", "bookmark", "gearshape"]
+    private let tabIcons = ["house", "calendar", "gearshape"]
     @State private var viewModels: [PostsViewModel] = []
     @State private var allPosts: [Post] = []
     @State private var sseCancellable: AnyCancellable?
@@ -51,8 +51,8 @@ struct ContentView: View {
 
             VStack(spacing: 0) {
                 // Main content based on selected tab
-                if selectedTab == 0 || selectedTab == 1 {
-                    // Home and Bookmarks tabs (currently same content)
+                if selectedTab == 0 {
+                    // Home tab - Posts
                     VStack(spacing: 0) {
                         // Modern Header
                         HeaderView(
@@ -72,6 +72,9 @@ struct ContentView: View {
                             selectedCategoryIndex: $selectedCategoryIndex
                         )
                     }
+                } else if selectedTab == 1 {
+                    // Events tab
+                    EventsView()
                 } else if selectedTab == 2 {
                     // Settings tab
                     SettingsView()
@@ -386,11 +389,14 @@ struct ContentView: View {
                     relevance: 10,
                     authorName: "Monitor System",
                     authorHandle: "@monitor",
-                    authorAvatar: nil,
+                    authorAvatar: nil as String?,
                     uri: "https://monitor.gaulatti.com",
-                    media: nil,
+                    media: nil as [MediaItem]?,
                     linkPreview: nil,
-                    lang: "en"
+                    lang: "en",
+                    hash: "test-deeplink-hash",
+                    uuid: "test-deeplink-uuid",
+                    matchScore: nil as Double?
                 )
                 navigationManager.navigateToPost(testPost)
             }

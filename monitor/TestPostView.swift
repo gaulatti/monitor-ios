@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Foundation
 
 struct TestPostView: View {
     let testPost = Post(
@@ -31,7 +32,10 @@ struct TestPostView: View {
             image: "https://example.com/preview.jpg",
             url: "https://example.com/original-post"
         ),
-        lang: "en"
+        lang: "en",
+        hash: "test-hash-789",
+        uuid: "test-uuid-012",
+        matchScore: 0.92
     )
     
     let categoryColors: [String: Color] = [

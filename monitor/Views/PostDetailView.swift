@@ -161,8 +161,11 @@ struct PostDetailView: View {
             authorAvatar: "https://example.com/avatar.jpg",
             uri: "https://example.com/original-post",
             media: [MediaItem(url: "https://example.com/image1.jpg")],
-            linkPreview: nil,
-            lang: "en"
+            linkPreview: nil as LinkPreview?,
+            lang: "en",
+            hash: "sample-hash-123",
+            uuid: "sample-uuid-456",
+            matchScore: 0.85
         ),
         categoryColors: [
             "technology": Color(red: 0.02, green: 0.71, blue: 0.83),

@@ -225,8 +225,11 @@ class SSEClient: NSObject, URLSessionDataDelegate {
                     authorAvatar: sseData.authorAvatar,
                     uri: sseData.uri,
                     media: sseData.media,
-                    linkPreview: nil, // SSE sends string, Post expects object
-                    lang: sseData.lang
+                    linkPreview: nil as LinkPreview?, // SSE sends string, Post expects object
+                    lang: sseData.lang,
+                    hash: nil as String?,
+                    uuid: nil as String?,
+                    matchScore: nil as Double?
                 )
                 
                 // Encode to JSON and send to ContentView
