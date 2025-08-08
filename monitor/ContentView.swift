@@ -182,7 +182,9 @@ struct ContentView: View {
                     }
 
                     // Add to "relevant" category if relevance meets user's threshold (index 1 since "relevant" is second)
-                    if Double(post.relevance) >= notificationManager.relevanceThreshold, let relevantViewModel = viewModels[safe: 1] {
+                    if let relevantViewModel = viewModels[safe: 1] {
+                        // Ensure the relevance threshold is set correctly
+                        relevantViewModel.relevanceThreshold = notificationManager.relevanceThreshold
                         relevantViewModel.insertPost(post)
                     }
 
@@ -341,9 +343,8 @@ struct ContentView: View {
         // Find the "relevant" category view model (index 1)
         guard let relevantViewModel = viewModels[safe: 1] else { return }
         
-        // Update threshold and re-fetch
-        relevantViewModel.relevanceThreshold = notificationManager.relevanceThreshold
-        relevantViewModel.fetchInitial()
+        // Use the new method to update threshold and re-fetch
+        relevantViewModel.updateRelevanceThreshold(notificationManager.relevanceThreshold)
         
         print("🔄 Updating 'Relevant' category with threshold \(notificationManager.relevanceThreshold)")
     }

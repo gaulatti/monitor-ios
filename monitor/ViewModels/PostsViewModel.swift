@@ -115,7 +115,13 @@ class PostsViewModel: ObservableObject {
                 }
                 
                 self.posts.append(contentsOf: newPosts)
-                self.updateOldestTimestamp(from: fetchedPosts)
+                
+                // Update oldest timestamp from the fetched posts (not just new posts)
+                // This ensures pagination continues correctly
+                if !fetchedPosts.isEmpty {
+                    self.updateOldestTimestamp(from: fetchedPosts)
+                }
+                
                 self.hasMore = fetchedPosts.count == 50
                 self.isLoadingMore = false
                 
@@ -179,6 +185,19 @@ class PostsViewModel: ObservableObject {
         }.resume()
     }
     
+    // MARK: - Relevance Threshold Management
+    func updateRelevanceThreshold(_ newThreshold: Double) {
+        guard category == "relevant" else { return }
+        
+        let oldThreshold = relevanceThreshold
+        relevanceThreshold = newThreshold
+        
+        print("🎯 [\(category)] Updating relevance threshold from \(oldThreshold) to \(newThreshold)")
+        
+        // Re-fetch initial posts with new threshold
+        fetchInitial()
+    }
+    
     private func filterPostsForCategory(_ posts: [Post]) -> [Post] {
         if category == "all" {
             return posts
@@ -215,8 +234,16 @@ class PostsViewModel: ObservableObject {
         print("Media count: \(post.media?.count ?? 0)")
         print("Categories: \(post.categories)")
         
-        // For "all" category, accept all posts. For specific categories, check if post matches category
-        let shouldInsert = category == "all" || post.categories.contains(category)
+        // Determine if post should be inserted based on category
+        let shouldInsert: Bool
+        if category == "all" {
+            shouldInsert = true
+        } else if category == "relevant" {
+            shouldInsert = Double(post.relevance) >= relevanceThreshold
+        } else {
+            shouldInsert = post.categories.contains(category)
+        }
+        
         guard shouldInsert else { 
             print("Post \(post.id) does not match category \(category), skipping")
             return 
