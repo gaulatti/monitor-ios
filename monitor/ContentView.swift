@@ -26,7 +26,6 @@ struct ContentView: View {
     @State private var selectedCategoryIndex = 0
     private let tabIcons = ["house", "calendar", "gearshape"]
     @State private var viewModels: [PostsViewModel] = []
-    @State private var allPosts: [Post] = []
     @State private var sseCancellable: AnyCancellable?
     @State private var pollingTimer: Timer? = nil
     @State private var sseClient = SSEClient()
@@ -183,7 +182,9 @@ struct ContentView: View {
                     }
 
                     // Add to "relevant" category if relevance meets user's threshold (index 1 since "relevant" is second)
-                    if Double(post.relevance) >= notificationManager.relevanceThreshold, let relevantViewModel = viewModels[safe: 1] {
+                    if let relevantViewModel = viewModels[safe: 1] {
+                        // Ensure the relevance threshold is set correctly
+                        relevantViewModel.relevanceThreshold = notificationManager.relevanceThreshold
                         relevantViewModel.insertPost(post)
                     }
 
@@ -209,113 +210,26 @@ struct ContentView: View {
 
     // Add this helper function inside ContentView
     private func fetchAndDistributePosts() {
-        print("🔄 Fetching fresh posts from server...")
-
-        guard let url = URL(string: "https://api.monitor.gaulatti.com/posts") else { return }
-        let decoder = JSONDecoder()
-        let isoFormatter = ISO8601DateFormatter()
-        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let dateStr = try container.decode(String.self)
-            if let date = isoFormatter.date(from: dateStr) {
-                return date
-            }
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date: \(dateStr)")
-        }
-        URLSession.shared.dataTask(with: url) { data, response, error in
-            if let error = error {
-                print("❌ Network error: \(error.localizedDescription)")
-                return
-            }
-
-            guard let data = data else { 
-                print("❌ No data received")
-                return 
-            }
-
-            // Log first part of response for debugging
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("📄 API Response (first 500 chars): \(String(responseString.prefix(500)))")
-            }
-
-                do {
-                let posts = try decoder.decode([Post].self, from: data)
-                print("✅ Successfully decoded \(posts.count) posts")
-
-                // Send analytics about posts fetched
-                NotificationManager.shared.sendAnalytics(event: "posts_fetched", data: [
-                    "count": posts.count,
-                    "source": "api"
-                ])
-
-                DispatchQueue.main.async {
-                    allPosts = posts
-                    print("📊 Fetched \(posts.count) total posts")
-
-                    // Create new view models with fresh data
-                    viewModels = categories.map { cat in
-                        if cat == "all" {
-                            // For "all" category, include all posts regardless of their categories
-                            let vm = PostsViewModel(category: cat)
-                            vm.posts = Array(posts.prefix(50)) // Show more posts for "all"
-                            print("📋 'All' category: \(vm.posts.count) posts")
-                            return vm
-                    } else if cat == "relevant" {
-
-                        // For "relevant" category, include posts with relevance >= user's threshold
-                        let relevantPosts = posts.filter { Double($0.relevance) >= notificationManager.relevanceThreshold }
-                        let vm = PostsViewModel(category: cat)
-                        vm.posts = Array(relevantPosts.prefix(30))
-                        print("🔥 'Relevant' category: \(vm.posts.count) posts (threshold: \(notificationManager.relevanceThreshold))")
-                        return vm
-                    } else {
-                        // For specific categories, filter by category
-                        let filtered = posts.filter { $0.categories.contains(cat) }
-                        let vm = PostsViewModel(category: cat)
-                        vm.posts = Array(filtered.prefix(30))
-                        print("📂 '\(cat)' category: \(vm.posts.count) posts")
-                        return vm
-                    }
-                }
-                print("✅ Data refresh completed successfully")
-            }
-            } catch {
-                print("❌ Failed to decode posts: \(error)")
-                if let decodingError = error as? DecodingError {
-                    switch decodingError {
-                    case .keyNotFound(let key, let context):
-                        print("Missing key: \(key.stringValue) in \(context.debugDescription)")
-                    case .typeMismatch(let type, let context):
-                        print("Type mismatch for type \(type) in \(context.debugDescription)")
-                    case .valueNotFound(let type, let context):
-                        print("Value not found for type \(type) in \(context.debugDescription)")
-                    case .dataCorrupted(let context):
-                        print("Data corrupted: \(context.debugDescription)")
-                    @unknown default:
-                        print("Unknown decoding error")
-                    }
-                }
-                return 
-            }
-        }.resume()
-    }
-
-    private func handleRelevanceThresholdChange(from oldThreshold: Double, to newThreshold: Double) {
-        print("🔄 Relevance threshold changed from \(oldThreshold) to \(newThreshold) - updating relevant category")
+        print("🔄 Setting up view models with pagination...")
         
-        // Update the "relevant" category (index 1) with new filtering
-        guard viewModels.count > 1 else { return }
-        
-        let relevantViewModel = viewModels[1] // "relevant" is always at index 1
-        let newRelevantPosts = allPosts.filter { $0.relevance >= Int(newThreshold) }
-        
-        withAnimation(.easeInOut(duration: 0.3)) {
-            relevantViewModel.posts = Array(newRelevantPosts.prefix(30))
+        // Create new view models for each category
+        viewModels = categories.map { cat in
+            let vm = PostsViewModel(category: cat)
+            if cat == "relevant" {
+                vm.relevanceThreshold = notificationManager.relevanceThreshold
+            }
+            return vm
         }
         
-        print("✅ Updated 'Relevant' category: \(relevantViewModel.posts.count) posts (threshold: \(Int(newThreshold)))")
+        // Trigger initial fetch for each category
+        for viewModel in viewModels {
+            viewModel.fetchInitial()
+        }
+        
+        print("✅ View models setup completed")
     }
+
+
 
     private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
         switch newPhase {
@@ -353,10 +267,9 @@ struct ContentView: View {
         // Clear all posts from view models
         for viewModel in viewModels {
             viewModel.posts.removeAll()
+            viewModel.hasMore = true
+            viewModel.isLoadingMore = false
         }
-        
-        // Clear the main posts array
-        allPosts.removeAll()
         
         // Reset connection state
         isConnected = false
@@ -368,8 +281,16 @@ struct ContentView: View {
     private func handleDeepLinkToPost(postId: String) {
         print("🔗 ContentView: Handling deep link to post \(postId)")
         
-        // Search for the post in all loaded posts
-        if let post = allPosts.first(where: { $0.id == postId }) {
+        // Search for the post in all loaded posts across all view models
+        var foundPost: Post?
+        for viewModel in viewModels {
+            if let post = viewModel.posts.first(where: { $0.id == postId }) {
+                foundPost = post
+                break
+            }
+        }
+        
+        if let post = foundPost {
             print("✅ Found post for deep link: \(post.id)")
             navigationManager.navigateToPost(post)
             navigationManager.deepLinkPostId = nil // Clear the deep link
@@ -422,13 +343,10 @@ struct ContentView: View {
         // Find the "relevant" category view model (index 1)
         guard let relevantViewModel = viewModels[safe: 1] else { return }
         
-        // Re-filter all posts based on the new threshold
-        let relevantPosts = allPosts.filter { Double($0.relevance) >= notificationManager.relevanceThreshold }
+        // Use the new method to update threshold and re-fetch
+        relevantViewModel.updateRelevanceThreshold(notificationManager.relevanceThreshold)
         
-        DispatchQueue.main.async {
-            relevantViewModel.posts = Array(relevantPosts.prefix(30))
-            print("🔄 Updated 'Relevant' category: \(relevantViewModel.posts.count) posts with threshold \(self.notificationManager.relevanceThreshold)")
-        }
+        print("🔄 Updating 'Relevant' category with threshold \(notificationManager.relevanceThreshold)")
     }
 }
 

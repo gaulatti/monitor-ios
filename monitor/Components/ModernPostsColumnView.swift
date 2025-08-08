@@ -20,6 +20,27 @@ struct ModernPostsColumnView: View {
                             insertion: .move(edge: .top).combined(with: .opacity),
                             removal: .move(edge: .bottom).combined(with: .opacity)
                         ))
+                        .onAppear {
+                            // Trigger load more when last item appears
+                            if post.id == viewModel.posts.last?.id {
+                                viewModel.loadMore()
+                            }
+                        }
+                }
+                
+                // Loading indicator
+                if viewModel.isLoadingMore {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .scaleEffect(0.8)
+                            .foregroundColor(.secondary)
+                        Text("Loading more...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .padding(.vertical, 16)
                 }
             }
             .padding(.vertical, 16)
