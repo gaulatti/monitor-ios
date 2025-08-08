@@ -101,6 +101,7 @@ struct ContentView: View {
             pollingTimer = nil
             sseClient.disconnect()
         }
+        .foregroundRefreshOnActive(viewModels: viewModels)
         .onChange(of: scenePhase) { oldPhase, newPhase in
             handleScenePhaseChange(from: oldPhase, to: newPhase)
         }
@@ -236,9 +237,10 @@ struct ContentView: View {
         case .active:
             // App became active (foreground)
             if oldPhase == .background || oldPhase == .inactive {
-                print("🚀 App returned to foreground - refreshing data and reconnecting SSE")
+                print("🚀 App returned to foreground - reconnecting SSE")
                 NotificationManager.shared.sendAnalytics(event: "app_foreground")
-                refreshAppData()
+                // Note: Posts refresh is now handled by ForegroundRefreshOnActive modifier
+                reconnectSSE()
             }
         case .background:
             // App went to background
@@ -253,30 +255,12 @@ struct ContentView: View {
         }
     }
     
-    private func refreshAppData() {
-        // Clear existing data
-        clearAllData()
-        
-        // Re-fetch posts and re-establish SSE connection
-        fetchAndDistributePosts()
+    private func reconnectSSE() {
+        // Re-establish SSE connection without clearing data
         setupSSE()
         startPulseAnimation()
     }
-    
-    private func clearAllData() {
-        // Clear all posts from view models
-        for viewModel in viewModels {
-            viewModel.posts.removeAll()
-            viewModel.hasMore = true
-            viewModel.isLoadingMore = false
-        }
-        
-        // Reset connection state
-        isConnected = false
-        pulseAnimation = false
-        
-        print("🧹 Cleared all data - ready for fresh start")
-    }
+
     
     private func handleDeepLinkToPost(postId: String) {
         print("🔗 ContentView: Handling deep link to post \(postId)")

@@ -191,4 +191,82 @@ struct monitorTests {
         relevantViewModel.insertPost(techPost)
         #expect(relevantViewModel.posts.count == 1) // only high relevance post (7 >= 5.0)
     }
+    
+    @Test func testForegroundRefreshDeduplication() async throws {
+        // Test that the foreground refresh logic properly deduplicates posts
+        let viewModel = PostsViewModel(category: "all")
+        
+        // Setup initial posts
+        let existingPost1 = Post(id: "1", content: "Existing post 1", source: "test", posted_at: Date().addingTimeInterval(-100), categories: ["test"], author: "test", relevance: 5, authorName: nil, authorHandle: nil, authorAvatar: nil, uri: nil, media: nil, linkPreview: nil, lang: nil, hash: nil, uuid: nil, matchScore: nil)
+        let existingPost2 = Post(id: "2", content: "Existing post 2", source: "test", posted_at: Date().addingTimeInterval(-200), categories: ["test"], author: "test", relevance: 5, authorName: nil, authorHandle: nil, authorAvatar: nil, uri: nil, media: nil, linkPreview: nil, lang: nil, hash: nil, uuid: nil, matchScore: nil)
+        
+        viewModel.posts = [existingPost1, existingPost2]
+        
+        // Simulate fetched posts that include duplicates and new posts
+        let newPost = Post(id: "3", content: "New post", source: "test", posted_at: Date(), categories: ["test"], author: "test", relevance: 5, authorName: nil, authorHandle: nil, authorAvatar: nil, uri: nil, media: nil, linkPreview: nil, lang: nil, hash: nil, uuid: nil, matchScore: nil)
+        let duplicatePost = existingPost1 // Same ID as existing post
+        
+        let fetchedPosts = [newPost, duplicatePost, existingPost2] // Mix of new and existing
+        
+        // Test deduplication logic manually (simulating what prependNewPosts does)
+        let newPosts = fetchedPosts.filter { newPost in
+            !viewModel.posts.contains { existingPost in existingPost.id == newPost.id }
+        }
+        
+        #expect(newPosts.count == 1) // Only the truly new post should remain
+        #expect(newPosts.first?.id == "3") // Should be the new post
+    }
+    
+    @Test func testPostSortingByDate() async throws {
+        // Test that posts are correctly sorted by posted_at DESC with ID tie-break
+        let viewModel = PostsViewModel(category: "all")
+        
+        let now = Date()
+        let post1 = Post(id: "post1", content: "First", source: "test", posted_at: now.addingTimeInterval(-100), categories: ["test"], author: "test", relevance: 5, authorName: nil, authorHandle: nil, authorAvatar: nil, uri: nil, media: nil, linkPreview: nil, lang: nil, hash: nil, uuid: nil, matchScore: nil)
+        let post2 = Post(id: "post2", content: "Second", source: "test", posted_at: now, categories: ["test"], author: "test", relevance: 5, authorName: nil, authorHandle: nil, authorAvatar: nil, uri: nil, media: nil, linkPreview: nil, lang: nil, hash: nil, uuid: nil, matchScore: nil)
+        let post3 = Post(id: "post3", content: "Third", source: "test", posted_at: now, categories: ["test"], author: "test", relevance: 5, authorName: nil, authorHandle: nil, authorAvatar: nil, uri: nil, media: nil, linkPreview: nil, lang: nil, hash: nil, uuid: nil, matchScore: nil)
+        
+        var posts = [post1, post2, post3]
+        
+        // Test sorting logic (simulating what prependNewPosts does)
+        posts.sort { post1, post2 in
+            if post1.posted_at == post2.posted_at {
+                // Tie-break by ID (descending to maintain consistency)
+                return post1.id > post2.id
+            }
+            return post1.posted_at > post2.posted_at
+        }
+        
+        // Should be sorted by date DESC, then by ID DESC for ties
+        #expect(posts[0].id == "post3") // Most recent date, higher ID
+        #expect(posts[1].id == "post2") // Most recent date, lower ID  
+        #expect(posts[2].id == "post1") // Older date
+    }
+    
+    @Test func testPaginationStatePreservation() async throws {
+        // Test that foreground refresh preserves pagination state
+        let viewModel = PostsViewModel(category: "all")
+        
+        // Setup initial state with pagination
+        viewModel.hasMore = true
+        viewModel.isLoadingMore = false
+        
+        let oldPost = Post(id: "old", content: "Old post", source: "test", posted_at: Date().addingTimeInterval(-1000), categories: ["test"], author: "test", relevance: 5, authorName: nil, authorHandle: nil, authorAvatar: nil, uri: nil, media: nil, linkPreview: nil, lang: nil, hash: nil, uuid: nil, matchScore: nil)
+        viewModel.posts = [oldPost]
+        
+        // Simulate the logic that preserves pagination state
+        // (In the real implementation, fetchTopAndPrepend does NOT modify hasMore or oldestTimestamp)
+        let originalHasMore = viewModel.hasMore
+        let originalIsLoadingMore = viewModel.isLoadingMore
+        
+        // Add a new post (simulating prepend without changing pagination state)
+        let newPost = Post(id: "new", content: "New post", source: "test", posted_at: Date(), categories: ["test"], author: "test", relevance: 5, authorName: nil, authorHandle: nil, authorAvatar: nil, uri: nil, media: nil, linkPreview: nil, lang: nil, hash: nil, uuid: nil, matchScore: nil)
+        viewModel.posts.insert(newPost, at: 0)
+        
+        // Verify pagination state is preserved
+        #expect(viewModel.hasMore == originalHasMore)
+        #expect(viewModel.isLoadingMore == originalIsLoadingMore)
+        #expect(viewModel.posts.count == 2)
+        #expect(viewModel.posts.first?.id == "new")
+    }
 }

@@ -137,7 +137,7 @@ class PostsViewModel: ObservableObject {
         }
     }
     
-    private func fetchPostsFromURL(_ url: URL, completion: @escaping ([Post]) -> Void) {
+    internal func fetchPostsFromURL(_ url: URL, completion: @escaping ([Post]) -> Void) {
         let decoder = JSONDecoder()
         let isoFormatter = ISO8601DateFormatter()
         isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -198,7 +198,7 @@ class PostsViewModel: ObservableObject {
         fetchInitial()
     }
     
-    private func filterPostsForCategory(_ posts: [Post]) -> [Post] {
+    internal func filterPostsForCategory(_ posts: [Post]) -> [Post] {
         if category == "all" {
             return posts
         } else if category == "relevant" {
